@@ -1,5 +1,8 @@
-from .generic import Archive
+import pathlib
+from typing import IO, Iterable, Union
+from .generic import _ArchivePath, Archive
 import tarfile
+import io
 
 
 class _TarIO(io.BytesIO):
@@ -19,7 +22,7 @@ class _TarIO(io.BytesIO):
 class TarArchive(Archive):
     """A subclass of Archive for working with TAR archives."""
 
-    extensions = [
+    _extensions = [
         ".tar",
         ".tar.bz2",
         ".tb2",
@@ -33,9 +36,13 @@ class TarArchive(Archive):
         ".tlz",
     ]
 
+    _pure_path_impl = pathlib.PurePosixPath
+
     @staticmethod
-    def is_readable(archive_fn):
-        return tarfile.is_tarfile(archive_fn)
+    def is_readable(archive_fn: Union[str, pathlib.Path]):
+        if isinstance(archive_fn, str):
+            archive_fn = pathlib.Path(archive_fn)
+        return archive_fn.is_file() and tarfile.is_tarfile(archive_fn)
 
     def __init__(self, archive_fn: Union[str, pathlib.Path], mode: str = "r"):
         self._tar = tarfile.open(archive_fn, mode)
@@ -44,27 +51,43 @@ class TarArchive(Archive):
     def close(self):
         self._tar.close()
 
-    def open(self, member_fn, mode="r", compress_hint=True) -> IO:
+    def open_member(
+        self,
+        member_fn: Union[str, pathlib.PurePath],
+        mode="r",
+        *args,
+        compress_hint=True,
+        **kwargs,
+    ) -> IO:
+        # Force str type
+        member_fn = str(member_fn)
+
         # tar does not compress files individually
         del compress_hint
 
-        if mode == "r":
+        if mode[0] == "r":
             try:
-                fp = self._tar.extractfile(self._resolve_member(member_fn))
+                stream = self._tar.extractfile(self._resolve_member(member_fn))
             except KeyError as exc:
-                raise MemberNotFoundError(
-                    f"{member_fn} not in {self._tar.name}"
-                ) from exc
+                raise FileNotFoundError(member_fn) from exc
 
-            if fp is None:
+            if stream is None:
                 raise IOError("There's no data associated with this member")
 
-            return fp
+        elif mode[0] == "w":
+            stream = _TarIO(self, member_fn)
+        else:
+            raise ValueError(f"Unrecognized mode: {mode}")
 
-        if mode == "w":
-            return _TarIO(self, member_fn)
+        if "b" in mode:
+            if args or kwargs:
+                stream.close()
+                raise ValueError("encoding args invalid for binary operation")
+            return stream
 
-        raise ValueError(f"Unrecognized mode: {mode}")
+        # Text mode
+        kwargs["encoding"] = io.text_encoding(kwargs.get("encoding"))
+        return io.TextIOWrapper(stream, *args, **kwargs)
 
     @property
     def _members(self):
@@ -79,7 +102,12 @@ class TarArchive(Archive):
         return self._members[member]
 
     def write_member(
-        self, member_fn: str, fileobj_or_bytes: Union[IO, bytes], compress_hint=True
+        self,
+        member_fn: str,
+        fileobj_or_bytes: Union[IO, bytes],
+        *,
+        compress_hint=True,
+        mode: str = "w",
     ):
         # tar does not compress files individually
         del compress_hint
@@ -96,5 +124,8 @@ class TarArchive(Archive):
         self._tar.addfile(tar_info, fileobj=fileobj_or_bytes)
         self._members[tar_info.name] = tar_info
 
-    def members(self):
-        return self._tar.getnames()
+    def members(self) -> Iterable[_ArchivePath]:
+        return (
+            _ArchivePath(self, self._pure_path_impl(name))
+            for name in self._members.keys()
+        )

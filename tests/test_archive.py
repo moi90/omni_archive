@@ -1,17 +1,14 @@
-import contextlib
 import io
 import pathlib
 import tarfile
 import zipfile
-from io import StringIO
 
-import pandas as pd
 import pytest
 
 from omni_archive import Archive
 
 
-@pytest.mark.parametrize("ext", [".tar", ".zip", ""])
+@pytest.mark.parametrize("ext", [".zip", ".tar", ""])
 @pytest.mark.parametrize("compress_hint", [True, False])
 def test_Archive(tmp_path, ext, compress_hint):
     archive_path: pathlib.Path = tmp_path / ("archive" + ext)
@@ -21,7 +18,26 @@ def test_Archive(tmp_path, ext, compress_hint):
 
     with Archive(archive_path, "w") as archive:
         with (archive / "foo.txt").open("w") as f:
-            f.write(b"foo")
+            f.write("foo")
+
+        archive.write_member("bar.txt", b"bar", compress_hint=compress_hint, mode="wb")
+
+        archive.write_member("baz.txt", io.BytesIO(b"baz"), mode="wb")
+
+        with open(spam_fn) as f:
+            archive.write_member(spam_fn.name, f, mode="wb")
+
+        assert set(str(m) for m in archive.members()) == {
+            "foo.txt",
+            "bar.txt",
+            "baz.txt",
+            "spam.txt",
+        }
+
+        assert set(str(m) for m in archive.glob("b*.txt")) == {
+            "bar.txt",
+            "baz.txt",
+        }
 
     if ext == ".zip":
         assert zipfile.is_zipfile(archive_path), f"{archive_path} is not a zip file"
@@ -33,5 +49,4 @@ def test_Archive(tmp_path, ext, compress_hint):
     with Archive(archive_path, "r") as archive:
         with (archive / "foo.txt").open("r") as f:
             contents = f.read()
-        assert contents == b"foo"
-        
+        assert contents == "foo"

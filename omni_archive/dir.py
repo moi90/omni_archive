@@ -1,39 +1,71 @@
-from .generic import Archive
+import os
+import pathlib
+import shutil
+from typing import IO, Iterable, Union
+from .generic import _ArchivePath, Archive
 
 
 class DirectoryArchive(Archive):
     """A subclass of Archive for working with filesystem directories."""
 
-    extensions = [""]
+    _extensions = [""]
+
+    # Use PurePosixPath PureWindowsPath depending on the system
+    _pure_path_impl = pathlib.PurePath
 
     @staticmethod
-    def is_readable(archive_fn):
-        return os.path.isdir(archive_fn)
+    def is_readable(archive_fn: Union[str, pathlib.Path]):
+        return pathlib.Path(archive_fn).is_dir()
 
     def __init__(self, archive_fn: Union[str, pathlib.Path], mode: str = "r"):
-        self.archive_fn = archive_fn
-        self.mode = mode
+        root_path = pathlib.Path(archive_fn)
 
-    def members(self):
-        def findall():
-            for root, dirs, files in os.walk(self.archive_fn):
-                relroot = os.path.relpath(root, self.archive_fn)
-                for fn in files:
-                    yield os.path.join(relroot, fn)
+        if mode == "r" and not root_path.exists():
+            raise FileNotFoundError(archive_fn)
 
-        return list(findall())
+        root_path.mkdir(exist_ok=True)
 
-    def open(self, member_fn: str, mode="r", compress_hint=True) -> IO:
-        return open(os.path.join(self.archive_fn, member_fn), mode=mode)
+        self._root_path = root_path
+        self._mode = mode
+
+    def members(self) -> Iterable[_ArchivePath]:
+        for root, dirs, files in os.walk(self._root_path):
+            relroot = os.path.relpath(root, self._root_path)
+            for fn in files:
+                yield _ArchivePath(
+                    self, self._pure_path_impl(os.path.join(relroot, fn))
+                )
+
+    def open_member(
+        self,
+        member_fn: Union[str, pathlib.PurePath],
+        mode="r",
+        *args,
+        compress_hint=True,
+        **kwargs,
+    ) -> IO:
+        del compress_hint
+
+        if mode[0] != "r" and self._mode == "r":
+            raise ValueError("Archive is read-only")
+
+        return open(self._root_path / member_fn, *args, mode=mode, **kwargs)
 
     def write_member(
-        self, member_fn: str, fileobj_or_bytes: Union[IO, bytes], compress_hint=True
+        self,
+        member_fn: Union[str, pathlib.PurePath],
+        fileobj_or_bytes: Union[IO, bytes],
+        *,
+        compress_hint=True,
+        mode: str = "w",
     ):
-        with self.open(member_fn, "w") as f:
-            if isinstance(fileobj_or_bytes, bytes):
-                f.write(fileobj_or_bytes)
-            else:
+        del compress_hint
+
+        with self.open_member(member_fn, mode) as f:
+            if hasattr(fileobj_or_bytes, "read"):
                 shutil.copyfileobj(fileobj_or_bytes, f)
+            else:
+                f.write(fileobj_or_bytes)
 
     def close(self):
         pass

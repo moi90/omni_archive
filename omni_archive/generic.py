@@ -1,18 +1,32 @@
 import abc
-from typing import IO, Callable, List, Mapping, Optional, Type, Union
+import fnmatch
+from typing import (
+    IO,
+    Container,
+    Iterable,
+    List,
+    Optional,
+    Type,
+    Union,
+)
 import pathlib
-
-pathlib.PurePosixPath
-
-
-class MemberNotFoundError(Exception):
-    pass
 
 
 class UnknownArchiveError(Exception):
     """Raised if no handler is found for the requested archive file."""
 
     pass
+
+
+def _validate_filemode(mode: str, allowed: Optional[Container] = None):
+    if allowed is not None:
+        if mode not in allowed:
+            raise ValueError(f"Mode {mode!r} not allowed ({allowed!r})")
+
+    for c in "rwax":
+        ...
+
+    return {c: c in mode for c in "rwxabt+"}
 
 
 class _ArchivePathInterface(abc.ABC):
@@ -26,6 +40,21 @@ class _ArchivePathInterface(abc.ABC):
     def __truediv__(self, key: Union[str, pathlib.PurePath]) -> "_ArchivePath":
         ...
 
+    @abc.abstractmethod
+    def exists(self):
+        """Return True if the path points to an existing file or directory."""
+        ...
+
+    @abc.abstractmethod
+    def glob(self, pattern: str, **kwargs) -> Iterable["_ArchivePath"]:
+        """Glob the given relative pattern in the directory represented by this path, yielding all matching files"""
+        ...
+
+    @abc.abstractmethod
+    def match(self, pattern: str, **kwargs) -> bool:
+        """Match this path against the provided glob-style pattern. Return True if matching is successful, False otherwise."""
+        ...
+
 
 class _ArchivePath(_ArchivePathInterface):
     """Represents a path within an archive."""
@@ -35,10 +64,25 @@ class _ArchivePath(_ArchivePathInterface):
         self._path = path
 
     def open(self, mode="r", compress_hint=True) -> IO:
-        return self._archive.open_member(self._path, mode, compress_hint)
+        return self._archive.open_member(self._path, mode, compress_hint=compress_hint)
 
     def __truediv__(self, key: Union[str, pathlib.PurePath]):
         return _ArchivePath(self._archive, self._path / key)
+
+    def exists(self):
+        return self._archive.has_member(self._path)
+
+    def glob(self, pattern: str, **kwargs) -> Iterable["_ArchivePath"]:
+        return self._archive.glob(str(self._path / pattern), **kwargs)
+
+    def match(self, pattern: str, case_sensitive=None) -> bool:
+        matches = fnmatch.fnmatchcase if case_sensitive else fnmatch.fnmatch
+
+        return matches(str(self._path), pattern)
+
+    def __str__(self) -> str:
+        """Return the string representation of the path."""
+        return str(self._path)
 
 
 class Archive(_ArchivePathInterface):
@@ -67,7 +111,7 @@ class Archive(_ArchivePathInterface):
             raise UnknownArchiveError(f"No handler found to write {archive_fn}")
 
     @staticmethod
-    def is_readable(archive_fn) -> bool:
+    def is_readable(archive_fn: Union[str, pathlib.Path]) -> bool:
         """Static method to determine if a subclass can read a certain archive."""
         raise NotImplementedError()  # pragma: no cover
 
@@ -75,9 +119,22 @@ class Archive(_ArchivePathInterface):
         raise NotImplementedError()  # pragma: no cover
 
     def open(self, mode="r", compress_hint=True) -> IO:
-        raise
+        raise IsADirectoryError(self)
 
-    def open_member(self, member_fn, mode="r", compress_hint=True) -> IO:
+    def match(self, pattern: str, *, case_sensitive=None) -> bool:
+        return False
+
+    def exists(self):
+        return True
+
+    def open_member(
+        self,
+        member_fn: Union[str, pathlib.PurePath],
+        mode="r",
+        *args,
+        compress_hint=True,
+        **kwargs,
+    ) -> IO:
         """
         Open an archive member.
 
@@ -87,11 +144,31 @@ class Archive(_ArchivePathInterface):
 
         raise NotImplementedError()  # pragma: no cover
 
-    def find(self, pattern) -> List[str]:
-        return fnmatch.filter(self.members(), pattern)
-
-    def members(self) -> List[str]:
+    def write_member(
+        self,
+        member_fn: Union[str, pathlib.PurePath],
+        fileobj_or_bytes: Union[IO, bytes],
+        *,
+        compress_hint=True,
+        mode: str = "w",
+    ):
+        """Write an archive member."""
         raise NotImplementedError()  # pragma: no cover
+
+    def members(self) -> Iterable[_ArchivePath]:
+        raise NotImplementedError()  # pragma: no cover
+
+    def has_member(self, member_fn: Union[str, pathlib.PurePath]) -> bool:
+        """Check if a member exists."""
+        raise NotImplementedError()  # pragma: no cover
+
+    def glob(self, pattern: str, *, case_sensitive=None) -> Iterable[_ArchivePath]:
+        if case_sensitive is None:
+            case_sensitive = True
+
+        for member in self.members():
+            if member.match(pattern, case_sensitive=case_sensitive):
+                yield member
 
     def close(self):
         pass
@@ -102,7 +179,7 @@ class Archive(_ArchivePathInterface):
     def __exit__(self, *_, **__):
         self.close()
 
-    def __truediv__(self, key: Union[str, pathlib.PurePath]):
+    def __truediv__(self, key: Union[str, pathlib.PurePath]) -> _ArchivePath:
         if isinstance(key, str):
             key = self._pure_path_impl(key)
 
