@@ -46,6 +46,11 @@ class _ArchivePathInterface(abc.ABC):
         ...
 
     @abc.abstractmethod
+    def is_file(self):
+        """Return True if the path points to a regular file (or a symbolic link pointing to a regular file)."""
+        ...
+
+    @abc.abstractmethod
     def glob(self, pattern: str, **kwargs) -> Iterable["_ArchivePath"]:
         """Glob the given relative pattern in the directory represented by this path, yielding all matching files"""
         ...
@@ -53,6 +58,25 @@ class _ArchivePathInterface(abc.ABC):
     @abc.abstractmethod
     def match(self, pattern: str, **kwargs) -> bool:
         """Match this path against the provided glob-style pattern. Return True if matching is successful, False otherwise."""
+        ...
+
+    @property
+    def name(self) -> str:
+        """A string representing the final path component, excluding the drive and root, if any."""
+        ...
+
+    @property
+    def stem(self) -> str:
+        """The final path component, without its suffix."""
+        ...
+
+    @property
+    def suffix(self) -> str:
+        """The file extension of the final component, if any."""
+        ...
+
+    def __lt__(self, other) -> bool:
+        """Comparison, for sorting."""
         ...
 
 
@@ -70,7 +94,10 @@ class _ArchivePath(_ArchivePathInterface):
         return _ArchivePath(self._archive, self._path / key)
 
     def exists(self):
-        return self._archive.has_member(self._path)
+        return self._archive.member_exists(self._path)
+
+    def is_file(self):
+        return self._archive.member_is_file(self._path)
 
     def glob(self, pattern: str, **kwargs) -> Iterable["_ArchivePath"]:
         return self._archive.glob(str(self._path / pattern), **kwargs)
@@ -83,6 +110,24 @@ class _ArchivePath(_ArchivePathInterface):
     def __str__(self) -> str:
         """Return the string representation of the path."""
         return str(self._path)
+
+    @property
+    def name(self) -> str:
+        return self._path.name
+
+    @property
+    def stem(self) -> str:
+        return self._path.stem
+
+    @property
+    def suffix(self) -> str:
+        return self._path.suffix
+
+    def __lt__(self, other) -> bool:
+        if not isinstance(other, _ArchivePath):
+            return NotImplemented
+
+        return self._path < other._path
 
 
 class Archive(_ArchivePathInterface):
@@ -127,6 +172,9 @@ class Archive(_ArchivePathInterface):
     def exists(self):
         return True
 
+    def is_file(self):
+        return False
+
     def open_member(
         self,
         member_fn: Union[str, pathlib.PurePath],
@@ -158,8 +206,12 @@ class Archive(_ArchivePathInterface):
     def members(self) -> Iterable[_ArchivePath]:
         raise NotImplementedError()  # pragma: no cover
 
-    def has_member(self, member_fn: Union[str, pathlib.PurePath]) -> bool:
+    def member_exists(self, member_fn: Union[str, pathlib.PurePath]) -> bool:
         """Check if a member exists."""
+        raise NotImplementedError()  # pragma: no cover
+
+    def member_is_file(self, member_fn: Union[str, pathlib.PurePath]) -> bool:
+        """Check if a member is a regular file."""
         raise NotImplementedError()  # pragma: no cover
 
     def glob(self, pattern: str, *, case_sensitive=None) -> Iterable[_ArchivePath]:
@@ -184,3 +236,18 @@ class Archive(_ArchivePathInterface):
             key = self._pure_path_impl(key)
 
         return _ArchivePath(self, key)
+
+    @property
+    def name(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def suffix(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def stem(self) -> str:
+        raise NotImplementedError()
+
+    def __lt__(self, other) -> bool:
+        return NotImplemented

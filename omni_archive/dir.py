@@ -67,5 +67,11 @@ class DirectoryArchive(Archive):
             else:
                 f.write(fileobj_or_bytes)
 
+    def member_is_file(self, member_fn: str | pathlib.PurePath) -> bool:
+        return (self._root_path / member_fn).is_file()
+
+    def member_exists(self, member_fn: str | pathlib.PurePath) -> bool:
+        return (self._root_path / member_fn).exists()
+
     def close(self):
         pass

@@ -22,10 +22,17 @@ def test_Archive(tmp_path, ext, compress_hint):
 
         archive.write_member("bar.txt", b"bar", compress_hint=compress_hint, mode="wb")
 
+        assert (archive / "bar.txt").is_file()
+        assert (archive / "bar.txt").exists()
+
         archive.write_member("baz.txt", io.BytesIO(b"baz"), mode="wb")
+
+        assert (archive / "baz.txt").is_file()
 
         with open(spam_fn) as f:
             archive.write_member(spam_fn.name, f, mode="wb")
+
+        assert (archive / spam_fn.name).is_file()
 
         assert set(str(m) for m in archive.members()) == {
             "foo.txt",

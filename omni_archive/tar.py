@@ -129,3 +129,15 @@ class TarArchive(Archive):
             _ArchivePath(self, self._pure_path_impl(name))
             for name in self._members.keys()
         )
+
+    def member_is_file(self, member_fn: str | pathlib.PurePath) -> bool:
+        # Force str type
+        member_fn = str(member_fn)
+
+        return self._members[member_fn].isfile()
+
+    def member_exists(self, member_fn: str | pathlib.PurePath) -> bool:
+        # Force str type
+        member_fn = str(member_fn)
+
+        return member_fn in self._members

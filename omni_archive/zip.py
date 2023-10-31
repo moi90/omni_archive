@@ -1,3 +1,4 @@
+import functools
 import io
 import pathlib
 from typing import IO, Iterable, Union
@@ -18,7 +19,15 @@ class ZipArchive(Archive):
         return archive_fn.is_file() and zipfile.is_zipfile(archive_fn)
 
     def __init__(self, archive_fn: Union[str, pathlib.Path], mode: str = "r"):
-        self._zip = zipfile.ZipFile(archive_fn, mode)
+        self._archive_fn = archive_fn
+        self._mode = mode
+
+    def __str__(self) -> str:
+        return str(self._archive_fn)
+
+    @functools.cached_property
+    def _zip(self):
+        return zipfile.ZipFile(self._archive_fn, self._mode)
 
     def members(self) -> Iterable[_ArchivePath]:
         return (
@@ -84,10 +93,17 @@ class ZipArchive(Archive):
         return self._zip.writestr(member_fn, data, compress_type=compress_type)
 
     def close(self):
-        self._zip.close()
+        if "_zip" in self.__dict__:
+            self._zip.close()
 
-    def has_member(self, member_fn: str | pathlib.PurePath) -> bool:
+    def member_exists(self, member_fn: str | pathlib.PurePath) -> bool:
         # Force str type
         member_fn = str(member_fn)
 
         return zipfile.Path(self._zip, member_fn).exists()
+
+    def member_is_file(self, member_fn: str | pathlib.PurePath) -> bool:
+        # Force str type
+        member_fn = str(member_fn)
+
+        return zipfile.Path(self._zip, member_fn).is_file()
