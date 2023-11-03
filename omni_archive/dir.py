@@ -18,23 +18,27 @@ class DirectoryArchive(Archive):
         return pathlib.Path(archive_fn).is_dir()
 
     def __init__(self, archive_fn: Union[str, pathlib.Path], mode: str = "r"):
-        root_path = pathlib.Path(archive_fn)
+        archive_fn = pathlib.Path(archive_fn)
 
-        if mode == "r" and not root_path.exists():
+        if mode == "r" and not archive_fn.exists():
             raise FileNotFoundError(archive_fn)
 
-        root_path.mkdir(exist_ok=True)
+        archive_fn.mkdir(exist_ok=True)
 
-        self._root_path = root_path
-        self._mode = mode
+        super().__init__(archive_fn, mode)
 
     def members(self) -> Iterable[_ArchivePath]:
-        for root, dirs, files in os.walk(self._root_path):
-            relroot = os.path.relpath(root, self._root_path)
+        for root, dirs, files in os.walk(self.archive_fn):
+            relroot = os.path.relpath(root, self.archive_fn)
             for fn in files:
                 yield _ArchivePath(
                     self, self._pure_path_impl(os.path.join(relroot, fn))
                 )
+
+    def glob(self, pattern: str, **kwargs) -> Iterable[_ArchivePath]:
+        for match in self.archive_fn.glob(pattern, **kwargs):
+            yield _ArchivePath(
+                    self, match.relative_to(self.archive_fn))
 
     def open_member(
         self,
@@ -46,10 +50,12 @@ class DirectoryArchive(Archive):
     ) -> IO:
         del compress_hint
 
-        if mode[0] != "r" and self._mode == "r":
+        if mode[0] != "r" and self.mode == "r":
             raise ValueError("Archive is read-only")
+        
+        (self.archive_fn / member_fn).parent.mkdir(parents=True, exist_ok=True)
 
-        return open(self._root_path / member_fn, *args, mode=mode, **kwargs)
+        return open(self.archive_fn / member_fn, mode, *args, **kwargs)
 
     def write_member(
         self,
@@ -68,10 +74,10 @@ class DirectoryArchive(Archive):
                 f.write(fileobj_or_bytes)
 
     def member_is_file(self, member_fn: str | pathlib.PurePath) -> bool:
-        return (self._root_path / member_fn).is_file()
+        return (self.archive_fn / member_fn).is_file()
 
     def member_exists(self, member_fn: str | pathlib.PurePath) -> bool:
-        return (self._root_path / member_fn).exists()
+        return (self.archive_fn / member_fn).exists()
 
     def close(self):
         pass

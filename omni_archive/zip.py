@@ -18,16 +18,9 @@ class ZipArchive(Archive):
             archive_fn = pathlib.Path(archive_fn)
         return archive_fn.is_file() and zipfile.is_zipfile(archive_fn)
 
-    def __init__(self, archive_fn: Union[str, pathlib.Path], mode: str = "r"):
-        self._archive_fn = archive_fn
-        self._mode = mode
-
-    def __str__(self) -> str:
-        return str(self._archive_fn)
-
     @functools.cached_property
     def _zip(self):
-        return zipfile.ZipFile(self._archive_fn, self._mode)
+        return zipfile.ZipFile(self.archive_fn, self.mode)
 
     def members(self) -> Iterable[_ArchivePath]:
         return (

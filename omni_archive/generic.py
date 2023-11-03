@@ -1,8 +1,6 @@
-import abc
 import fnmatch
 from typing import (
     IO,
-    Container,
     Iterable,
     List,
     Optional,
@@ -11,6 +9,8 @@ from typing import (
 )
 import pathlib
 
+from .abc import PathLike, PurePathLike
+
 
 class UnknownArchiveError(Exception):
     """Raised if no handler is found for the requested archive file."""
@@ -18,69 +18,7 @@ class UnknownArchiveError(Exception):
     pass
 
 
-def _validate_filemode(mode: str, allowed: Optional[Container] = None):
-    if allowed is not None:
-        if mode not in allowed:
-            raise ValueError(f"Mode {mode!r} not allowed ({allowed!r})")
-
-    for c in "rwax":
-        ...
-
-    return {c: c in mode for c in "rwxabt+"}
-
-
-class _ArchivePathInterface(abc.ABC):
-    """Common path-like interface."""
-
-    @abc.abstractmethod
-    def open(self, mode="r", compress_hint=True) -> IO:
-        ...
-
-    @abc.abstractmethod
-    def __truediv__(self, key: Union[str, pathlib.PurePath]) -> "_ArchivePath":
-        ...
-
-    @abc.abstractmethod
-    def exists(self):
-        """Return True if the path points to an existing file or directory."""
-        ...
-
-    @abc.abstractmethod
-    def is_file(self):
-        """Return True if the path points to a regular file (or a symbolic link pointing to a regular file)."""
-        ...
-
-    @abc.abstractmethod
-    def glob(self, pattern: str, **kwargs) -> Iterable["_ArchivePath"]:
-        """Glob the given relative pattern in the directory represented by this path, yielding all matching files"""
-        ...
-
-    @abc.abstractmethod
-    def match(self, pattern: str, **kwargs) -> bool:
-        """Match this path against the provided glob-style pattern. Return True if matching is successful, False otherwise."""
-        ...
-
-    @property
-    def name(self) -> str:
-        """A string representing the final path component, excluding the drive and root, if any."""
-        ...
-
-    @property
-    def stem(self) -> str:
-        """The final path component, without its suffix."""
-        ...
-
-    @property
-    def suffix(self) -> str:
-        """The file extension of the final component, if any."""
-        ...
-
-    def __lt__(self, other) -> bool:
-        """Comparison, for sorting."""
-        ...
-
-
-class _ArchivePath(_ArchivePathInterface):
+class _ArchivePath(PathLike):
     """Represents a path within an archive."""
 
     def __init__(self, archive: "Archive", path: pathlib.PurePath) -> None:
@@ -101,6 +39,9 @@ class _ArchivePath(_ArchivePathInterface):
 
     def glob(self, pattern: str, **kwargs) -> Iterable["_ArchivePath"]:
         return self._archive.glob(str(self._path / pattern), **kwargs)
+    
+    def iterdir(self) -> Iterable["_ArchivePath"]:
+        return self._archive._iterdir_at(self._path)
 
     def match(self, pattern: str, case_sensitive=None) -> bool:
         matches = fnmatch.fnmatchcase if case_sensitive else fnmatch.fnmatch
@@ -110,6 +51,10 @@ class _ArchivePath(_ArchivePathInterface):
     def __str__(self) -> str:
         """Return the string representation of the path."""
         return str(self._path)
+    
+    @property
+    def parent(self) -> "_ArchivePath":
+        return _ArchivePath(self._archive, self._path.parent)
 
     @property
     def name(self) -> str:
@@ -130,7 +75,7 @@ class _ArchivePath(_ArchivePathInterface):
         return self._path < other._path
 
 
-class Archive(_ArchivePathInterface):
+class Archive(PathLike):
     """
     A generic archive reader and writer for ZIP, TAR and other archives.
     """
@@ -161,7 +106,11 @@ class Archive(_ArchivePathInterface):
         raise NotImplementedError()  # pragma: no cover
 
     def __init__(self, archive_fn: Union[str, pathlib.Path], mode: str = "r"):
-        raise NotImplementedError()  # pragma: no cover
+        if isinstance(archive_fn, str):
+            archive_fn = pathlib.Path(archive_fn)
+
+        self.archive_fn = archive_fn
+        self.mode = mode
 
     def open(self, mode="r", compress_hint=True) -> IO:
         raise IsADirectoryError(self)
@@ -185,6 +134,8 @@ class Archive(_ArchivePathInterface):
     ) -> IO:
         """
         Open an archive member.
+
+        If mode=="w", paths to the requested member are automatically created.
 
         Raises:
             MemberNotFoundError if mode=="r" and the member was not found.
@@ -214,12 +165,20 @@ class Archive(_ArchivePathInterface):
         """Check if a member is a regular file."""
         raise NotImplementedError()  # pragma: no cover
 
-    def glob(self, pattern: str, *, case_sensitive=None) -> Iterable[_ArchivePath]:
-        if case_sensitive is None:
-            case_sensitive = True
+    def glob(self, pattern: str, **kwargs) -> Iterable[_ArchivePath]:
+        for member in self.members():
+            if member.match(pattern, **kwargs):
+                yield member
+
+    def iterdir(self) -> Iterable["_ArchivePath"]:
+        return self._iterdir_at()
+
+    def _iterdir_at(self, at: Optional[pathlib.PurePath]=None) -> Iterable[_ArchivePath]:
+        if at is None:
+            at = self._pure_path_impl(".")
 
         for member in self.members():
-            if member.match(pattern, case_sensitive=case_sensitive):
+            if member.parent._path == at:
                 yield member
 
     def close(self):
@@ -236,6 +195,10 @@ class Archive(_ArchivePathInterface):
             key = self._pure_path_impl(key)
 
         return _ArchivePath(self, key)
+    
+    @property
+    def parent(self) -> _ArchivePath:
+        return self / "."
 
     @property
     def name(self) -> str:
@@ -251,3 +214,6 @@ class Archive(_ArchivePathInterface):
 
     def __lt__(self, other) -> bool:
         return NotImplemented
+
+    def __str__(self) -> str:
+        return str(self.archive_fn)

@@ -1,3 +1,4 @@
+import functools
 import pathlib
 from typing import IO, Iterable, Union
 from .generic import _ArchivePath, Archive
@@ -44,9 +45,9 @@ class TarArchive(Archive):
             archive_fn = pathlib.Path(archive_fn)
         return archive_fn.is_file() and tarfile.is_tarfile(archive_fn)
 
-    def __init__(self, archive_fn: Union[str, pathlib.Path], mode: str = "r"):
-        self._tar = tarfile.open(archive_fn, mode)
-        self.__members = None
+    @functools.cached_property
+    def _tar(self):
+        return tarfile.open(self.archive_fn, self.mode)
 
     def close(self):
         self._tar.close()
@@ -89,14 +90,9 @@ class TarArchive(Archive):
         kwargs["encoding"] = io.text_encoding(kwargs.get("encoding"))
         return io.TextIOWrapper(stream, *args, **kwargs)
 
-    @property
+    @functools.cached_property
     def _members(self):
-        if self.__members is not None:
-            return self.__members
-        self.__members = {
-            tar_info.name: tar_info for tar_info in self._tar.getmembers()
-        }
-        return self.__members
+        return {tar_info.name: tar_info for tar_info in self._tar.getmembers()}
 
     def _resolve_member(self, member):
         return self._members[member]
