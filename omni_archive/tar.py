@@ -49,6 +49,10 @@ class TarArchive(Archive):
     def _tar(self):
         return tarfile.open(self.archive_fn, self.mode)
 
+    def unload(self):
+        super().unload()
+        self.__dict__.pop("_tar", None)
+
     def close(self):
         self._tar.close()
 

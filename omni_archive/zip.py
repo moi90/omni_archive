@@ -22,6 +22,10 @@ class ZipArchive(Archive):
     def _zip(self):
         return zipfile.ZipFile(self.archive_fn, self.mode)
 
+    def unload(self):
+        super().unload()
+        self.__dict__.pop("_zip", None)
+
     def members(self) -> Iterable[_ArchivePath]:
         return (
             _ArchivePath(self, self._pure_path_impl(name))
