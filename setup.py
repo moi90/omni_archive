@@ -16,8 +16,8 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/moi90/omni_archive",
     packages=find_packages(),
-    install_requires=[],
-    python_requires=">=3.7",
+    install_requires=["pathlib_abc"],
+    python_requires=">=3.8",
     extras_require={
         "test": [
             # Pytest
@@ -33,9 +33,10 @@ setup(
     },
     classifiers=[
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
         "Development Status :: 3 - Alpha",

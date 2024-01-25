@@ -1,7 +1,7 @@
 # OmniArchive
 
 This Python module provides a generic archive reader and writer for various archive formats, including ZIP, TAR, and regular filesystem directories.
-It offers a consistent interface for working with these archive types.
+It offers a consistent interface following [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) for working with these archive types.
 The module is designed to be extensible, allowing developers to add support for additional archive formats.
 
 ## Alternatives

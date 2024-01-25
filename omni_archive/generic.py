@@ -9,7 +9,7 @@ from typing import (
 )
 import pathlib
 
-from .abc import PathLike, PurePathLike
+from pathlib_abc import PathBase, PurePathBase, UnsupportedOperation
 
 
 class UnknownArchiveError(Exception):
@@ -18,7 +18,7 @@ class UnknownArchiveError(Exception):
     pass
 
 
-class _ArchivePath(PathLike):
+class _ArchivePath(PathBase):
     """Represents a path within an archive."""
 
     def __init__(self, archive: "Archive", path: pathlib.PurePath) -> None:
@@ -39,7 +39,7 @@ class _ArchivePath(PathLike):
 
     def glob(self, pattern: str, **kwargs) -> Iterable["_ArchivePath"]:
         return self._archive.glob(str(self._path / pattern), **kwargs)
-    
+
     def iterdir(self) -> Iterable["_ArchivePath"]:
         return self._archive._iterdir_at(self._path)
 
@@ -49,9 +49,8 @@ class _ArchivePath(PathLike):
         return matches(str(self._path), pattern)
 
     def __str__(self) -> str:
-        """Return the string representation of the path."""
-        return str(self._path)
-    
+        return str(self._archive.archive_fn / self._path)
+
     @property
     def parent(self) -> "_ArchivePath":
         return _ArchivePath(self._archive, self._path.parent)
@@ -72,10 +71,13 @@ class _ArchivePath(PathLike):
         if not isinstance(other, _ArchivePath):
             return NotImplemented
 
+        if self._archive.archive_fn != other._archive.archive_fn:
+            return NotImplemented
+
         return self._path < other._path
 
 
-class Archive(PathLike):
+class Archive(PathBase):
     """
     A generic archive reader and writer for ZIP, TAR and other archives.
     """
@@ -83,7 +85,9 @@ class Archive(PathLike):
     _extensions: List[str]
     _pure_path_impl: Type[pathlib.PurePath]
 
-    def __new__(cls, archive_fn: Union[str, pathlib.Path], mode: str = "r"):
+    def __new__(
+        cls, archive_fn: Union[str, pathlib.Path], mode: str = "r"
+    ) -> "Archive":
         archive_fn = str(archive_fn)
 
         if mode[0] == "r":
@@ -100,6 +104,9 @@ class Archive(PathLike):
 
             raise UnknownArchiveError(f"No handler found to write {archive_fn}")
 
+        raise ValueError(f"Unknown mode: {mode}")
+
+    # Not abstract so that the type checker does not complain if Archive is instanciated.
     @staticmethod
     def is_readable(archive_fn: Union[str, pathlib.Path]) -> bool:
         """Static method to determine if a subclass can read a certain archive."""
@@ -111,6 +118,12 @@ class Archive(PathLike):
 
         self.archive_fn = archive_fn
         self.mode = mode
+
+    def unload(self):
+        """Remove the archive from memory."""
+
+        if self.mode != "r":
+            raise ValueError("Can only unload read-only archive")
 
     def open(self, mode="r", compress_hint=True) -> IO:
         raise IsADirectoryError(self)
@@ -173,7 +186,9 @@ class Archive(PathLike):
     def iterdir(self) -> Iterable["_ArchivePath"]:
         return self._iterdir_at()
 
-    def _iterdir_at(self, at: Optional[pathlib.PurePath]=None) -> Iterable[_ArchivePath]:
+    def _iterdir_at(
+        self, at: Optional[pathlib.PurePath] = None
+    ) -> Iterable[_ArchivePath]:
         if at is None:
             at = self._pure_path_impl(".")
 
@@ -195,7 +210,7 @@ class Archive(PathLike):
             key = self._pure_path_impl(key)
 
         return _ArchivePath(self, key)
-    
+
     @property
     def parent(self) -> _ArchivePath:
         return self / "."
@@ -213,6 +228,9 @@ class Archive(PathLike):
         raise NotImplementedError()
 
     def __lt__(self, other) -> bool:
+        if isinstance(other, Archive):
+            return self.archive_fn < other.archive_fn
+
         return NotImplemented
 
     def __str__(self) -> str:

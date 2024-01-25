@@ -35,27 +35,29 @@ def test_Archive(tmp_path, ext, compress_hint):
         assert (archive / spam_fn.name).is_file()
 
         assert set(str(m) for m in archive.members()) == {
-            "foo.txt",
-            "bar.txt",
-            "baz.txt",
-            "spam.txt",
+            str(archive_path / "foo.txt"),
+            str(archive_path / "bar.txt"),
+            str(archive_path / "baz.txt"),
+            str(archive_path / "spam.txt"),
         }
 
         assert set(str(m) for m in archive.glob("b*.txt")) == {
-            "bar.txt",
-            "baz.txt",
+            str(archive_path / "bar.txt"),
+            str(archive_path / "baz.txt"),
         }
 
-        assert set(str(m) for m in archive.iterdir()) == set(str(m) for m in archive.glob("*"))
+        assert set(str(m) for m in archive.iterdir()) == set(
+            str(m) for m in archive.glob("*")
+        )
 
         dir1 = archive / "dir1"
 
         with (dir1 / "foo.txt").open("w") as f:
             f.write("foo")
 
-        assert set(str(m) for m in dir1.iterdir()) == set(str(m) for m in dir1.glob("*"))
-
-
+        assert set(str(m) for m in dir1.iterdir()) == set(
+            str(m) for m in dir1.glob("*")
+        )
 
     if ext == ".zip":
         assert zipfile.is_zipfile(archive_path), f"{archive_path} is not a zip file"
