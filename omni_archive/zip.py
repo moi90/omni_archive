@@ -19,17 +19,13 @@ class ZipArchive(Archive):
         return archive_fn.is_file() and zipfile.is_zipfile(archive_fn)
 
     @functools.cached_property
-    def _zip(self):
+    def _zipfile(self):
         return zipfile.ZipFile(self.archive_fn, self.mode)
-
-    def unload(self):
-        super().unload()
-        self.__dict__.pop("_zip", None)
 
     def members(self) -> Iterable[_ArchivePath]:
         return (
             _ArchivePath(self, self._pure_path_impl(name))
-            for name in self._zip.namelist()
+            for name in self._zipfile.namelist()
         )
 
     def open_member(
@@ -52,7 +48,7 @@ class ZipArchive(Archive):
             member = member_fn
 
         try:
-            stream = self._zip.open(member, mode[0])  # type: ignore
+            stream = self._zipfile.open(member, mode[0])  # type: ignore
         except KeyError as exc:
             raise FileNotFoundError(member_fn) from exc
 
@@ -87,20 +83,23 @@ class ZipArchive(Archive):
         else:
             data = fileobj_or_bytes
 
-        return self._zip.writestr(member_fn, data, compress_type=compress_type)
+        return self._zipfile.writestr(member_fn, data, compress_type=compress_type)
 
     def close(self):
-        if "_zip" in self.__dict__:
-            self._zip.close()
+        if "_zipfile" in self.__dict__:
+            self._zipfile.close()
+            if self.mode in ("ra"):
+                # Remove cached ZipFile instance so that it can be transparently reopened
+                self.__dict__.pop("_zipfile", None)
 
     def member_exists(self, member_fn: str | pathlib.PurePath) -> bool:
         # Force str type
         member_fn = str(member_fn)
 
-        return zipfile.Path(self._zip, member_fn).exists()
+        return zipfile.Path(self._zipfile, member_fn).exists()
 
     def member_is_file(self, member_fn: str | pathlib.PurePath) -> bool:
         # Force str type
         member_fn = str(member_fn)
 
-        return zipfile.Path(self._zip, member_fn).is_file()
+        return zipfile.Path(self._zipfile, member_fn).is_file()

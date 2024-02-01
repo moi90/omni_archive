@@ -46,15 +46,16 @@ class TarArchive(Archive):
         return archive_fn.is_file() and tarfile.is_tarfile(archive_fn)
 
     @functools.cached_property
-    def _tar(self):
+    def _tarfile(self):
         return tarfile.open(self.archive_fn, self.mode)
 
-    def unload(self):
-        super().unload()
-        self.__dict__.pop("_tar", None)
-
     def close(self):
-        self._tar.close()
+        if "_tarfile" in self.__dict__:
+            self._tarfile.close()
+            if self.mode in ("ra"):
+                # # Remove cached TarFile instance so that it can be transparently reopened
+                self.__dict__.pop("_tarfile", None)
+                self.__dict__.pop("_members", None)
 
     def open_member(
         self,
@@ -72,7 +73,8 @@ class TarArchive(Archive):
 
         if mode[0] == "r":
             try:
-                stream = self._tar.extractfile(self._resolve_member(member_fn))
+                tar_info = self._members[member_fn]
+                stream = self._tarfile.extractfile(tar_info)
             except KeyError as exc:
                 raise FileNotFoundError(member_fn) from exc
 
@@ -96,10 +98,10 @@ class TarArchive(Archive):
 
     @functools.cached_property
     def _members(self):
-        return {tar_info.name: tar_info for tar_info in self._tar.getmembers()}
-
-    def _resolve_member(self, member):
-        return self._members[member]
+        # Build a mapping from name to tar_info.
+        # Otherwise, the list of members has to be iterated
+        # each time a name is searched.
+        return {tar_info.name: tar_info for tar_info in self._tarfile.getmembers()}
 
     def write_member(
         self,
@@ -119,9 +121,11 @@ class TarArchive(Archive):
             tar_info = tarfile.TarInfo(member_fn)
             tar_info.size = len(fileobj_or_bytes.getbuffer())
         else:
-            tar_info = self._tar.gettarinfo(arcname=member_fn, fileobj=fileobj_or_bytes)
+            tar_info = self._tarfile.gettarinfo(
+                arcname=member_fn, fileobj=fileobj_or_bytes
+            )
 
-        self._tar.addfile(tar_info, fileobj=fileobj_or_bytes)
+        self._tarfile.addfile(tar_info, fileobj=fileobj_or_bytes)
         self._members[tar_info.name] = tar_info
 
     def members(self) -> Iterable[_ArchivePath]:

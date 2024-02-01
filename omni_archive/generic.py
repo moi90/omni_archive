@@ -51,6 +51,9 @@ class _ArchivePath(PathBase):
     def __str__(self) -> str:
         return str(self._archive.archive_fn / self._path)
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}({self._path})>"
+
     @property
     def parent(self) -> "_ArchivePath":
         return _ArchivePath(self._archive, self._path.parent)
@@ -79,7 +82,9 @@ class _ArchivePath(PathBase):
 
 class Archive(PathBase):
     """
-    A generic archive reader and writer for ZIP, TAR and other archives.
+    A generic archive reader and writer for ZIP, TAR and other archives, offering a familiar pathlib-like API.
+
+    An Archiv instance behaves like a root directory: It has no name and is its own parent.
     """
 
     _extensions: List[str]
@@ -88,7 +93,8 @@ class Archive(PathBase):
     def __new__(
         cls, archive_fn: Union[str, pathlib.Path], mode: str = "r"
     ) -> "Archive":
-        archive_fn = str(archive_fn)
+        if isinstance(archive_fn, str):
+            archive_fn = pathlib.Path(archive_fn)
 
         if mode[0] == "r":
             for subclass in cls.__subclasses__():
@@ -99,7 +105,7 @@ class Archive(PathBase):
 
         if mode[0] in ("a", "w", "x"):
             for subclass in cls.__subclasses__():
-                if any(archive_fn.endswith(ext) for ext in subclass._extensions):
+                if any(archive_fn.name.endswith(ext) for ext in subclass._extensions):
                     return super(Archive, subclass).__new__(subclass)
 
             raise UnknownArchiveError(f"No handler found to write {archive_fn}")
@@ -118,12 +124,6 @@ class Archive(PathBase):
 
         self.archive_fn = archive_fn
         self.mode = mode
-
-    def unload(self):
-        """Remove the archive from memory."""
-
-        if self.mode != "r":
-            raise ValueError("Can only unload read-only archive")
 
     def open(self, mode="r", compress_hint=True) -> IO:
         raise IsADirectoryError(self)
@@ -197,6 +197,11 @@ class Archive(PathBase):
                 yield member
 
     def close(self):
+        """
+        Close the archive and free resources.
+
+        For archives in (w/x)-mode, it is an error to access it after closing.
+        """
         pass
 
     def __enter__(self):
@@ -212,20 +217,20 @@ class Archive(PathBase):
         return _ArchivePath(self, key)
 
     @property
-    def parent(self) -> _ArchivePath:
-        return self / "."
+    def parent(self):
+        return self
 
     @property
     def name(self) -> str:
-        raise NotImplementedError()
+        return ""
 
     @property
     def suffix(self) -> str:
-        raise NotImplementedError()
+        return ""
 
     @property
     def stem(self) -> str:
-        raise NotImplementedError()
+        return ""
 
     def __lt__(self, other) -> bool:
         if isinstance(other, Archive):
