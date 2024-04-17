@@ -20,10 +20,12 @@ class DirectoryArchive(Archive):
     def __init__(self, archive_fn: Union[str, pathlib.Path], mode: str = "r"):
         archive_fn = pathlib.Path(archive_fn)
 
-        if mode == "r" and not archive_fn.exists():
-            raise FileNotFoundError(archive_fn)
+        # Validate mode
+        if mode not in ["r", "w"]:  # pragma: no cover
+            raise ValueError(f"Expected mode to be 'r', 'a' or 'w', got {mode!r}")
 
-        archive_fn.mkdir(exist_ok=True)
+        if mode[0] in "awx":
+            archive_fn.mkdir(exist_ok=True)
 
         super().__init__(archive_fn, mode)
 
@@ -37,8 +39,7 @@ class DirectoryArchive(Archive):
 
     def glob(self, pattern: str, **kwargs) -> Iterable[_ArchivePath]:
         for match in self.archive_fn.glob(pattern, **kwargs):
-            yield _ArchivePath(
-                    self, match.relative_to(self.archive_fn))
+            yield _ArchivePath(self, match.relative_to(self.archive_fn))
 
     def open_member(
         self,
@@ -50,9 +51,9 @@ class DirectoryArchive(Archive):
     ) -> IO:
         del compress_hint
 
-        if mode[0] != "r" and self.mode == "r":
-            raise ValueError("Archive is read-only")
-        
+        if "r" not in mode and self.mode == "r":
+            raise ValueError("Can not write to a read-only archive")
+
         (self.archive_fn / member_fn).parent.mkdir(parents=True, exist_ok=True)
 
         return open(self.archive_fn / member_fn, mode, *args, **kwargs)

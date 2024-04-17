@@ -1,15 +1,9 @@
 import fnmatch
-from typing import (
-    IO,
-    Iterable,
-    List,
-    Optional,
-    Type,
-    Union,
-)
 import pathlib
+from typing import IO, Iterable, List, Optional, Type, Union
 
-from pathlib_abc import PathBase, PurePathBase, UnsupportedOperation
+import fnmatch2
+from pathlib_abc import PathBase
 
 
 class UnknownArchiveError(Exception):
@@ -25,8 +19,10 @@ class _ArchivePath(PathBase):
         self._archive = archive
         self._path = path
 
-    def open(self, mode="r", compress_hint=True) -> IO:
-        return self._archive.open_member(self._path, mode, compress_hint=compress_hint)
+    def open(self, mode="r", compress_hint=True, **kwargs) -> IO:
+        return self._archive.open_member(
+            self._path, mode, compress_hint=compress_hint, **kwargs
+        )
 
     def __truediv__(self, key: Union[str, pathlib.PurePath]):
         return _ArchivePath(self._archive, self._path / key)
@@ -51,7 +47,7 @@ class _ArchivePath(PathBase):
     def __str__(self) -> str:
         return str(self._archive.archive_fn / self._path)
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover
         return f"<{self.__class__.__name__}({self._path})>"
 
     @property
@@ -71,10 +67,10 @@ class _ArchivePath(PathBase):
         return self._path.suffix
 
     def __lt__(self, other) -> bool:
-        if not isinstance(other, _ArchivePath):
+        if not isinstance(other, _ArchivePath):  # pragma: no cover
             return NotImplemented
 
-        if self._archive.archive_fn != other._archive.archive_fn:
+        if self._archive.archive_fn != other._archive.archive_fn:  # pragma: no cover
             return NotImplemented
 
         return self._path < other._path
@@ -108,9 +104,11 @@ class Archive(PathBase):
                 if any(archive_fn.name.endswith(ext) for ext in subclass._extensions):
                     return super(Archive, subclass).__new__(subclass)
 
-            raise UnknownArchiveError(f"No handler found to write {archive_fn}")
+            raise UnknownArchiveError(
+                f"No handler found to write {archive_fn}"
+            )  # pragma: no cover
 
-        raise ValueError(f"Unknown mode: {mode}")
+        raise ValueError(f"Unknown mode: {mode}")  # pragma: no cover
 
     # Not abstract so that the type checker does not complain if Archive is instanciated.
     @staticmethod
@@ -128,8 +126,8 @@ class Archive(PathBase):
     def open(self, mode="r", compress_hint=True) -> IO:
         raise IsADirectoryError(self)
 
-    def match(self, pattern: str, *, case_sensitive=None) -> bool:
-        return False
+    def match(self, pattern: str, **kwargs) -> bool:
+        return self.archive_fn.match(pattern, **kwargs)
 
     def exists(self):
         return True
@@ -179,8 +177,19 @@ class Archive(PathBase):
         raise NotImplementedError()  # pragma: no cover
 
     def glob(self, pattern: str, **kwargs) -> Iterable[_ArchivePath]:
+        # We use fnmatch2 here, instead of member.match.
+        # With member.match, * would match arbitrarily deep which only ** should do
+        # We could also use pywildcard.fnmatch.
+        # TODO: Investigate performance differences
+
+        fnmatch2_ = (
+            fnmatch2.fnmatchcase2
+            if kwargs.get("case_sensitive", False)
+            else fnmatch2.fnmatch2
+        )
+
         for member in self.members():
-            if member.match(pattern, **kwargs):
+            if fnmatch2_(str(member._path), pattern):
                 yield member
 
     def iterdir(self) -> Iterable["_ArchivePath"]:
@@ -196,7 +205,7 @@ class Archive(PathBase):
             if member.parent._path == at:
                 yield member
 
-    def close(self):
+    def close(self):  # pragma: no cover
         """
         Close the archive and free resources.
 
@@ -236,7 +245,7 @@ class Archive(PathBase):
         if isinstance(other, Archive):
             return self.archive_fn < other.archive_fn
 
-        return NotImplemented
+        return NotImplemented  # pragma: no cover
 
     def __str__(self) -> str:
         return str(self.archive_fn)

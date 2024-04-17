@@ -16,7 +16,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/moi90/omni_archive",
     packages=find_packages(),
-    install_requires=["pathlib_abc"],
+    install_requires=["pathlib_abc", "fnmatch2"],
     python_requires=">=3.8",
     extras_require={
         "test": [

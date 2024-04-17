@@ -82,6 +82,9 @@ class TarArchive(Archive):
                 raise IOError("There's no data associated with this member")
 
         elif mode[0] == "w":
+            if "r" in self.mode:
+                raise ValueError("Can not write to a read-only archive")
+
             stream = _TarIO(self, member_fn)
         else:
             raise ValueError(f"Unrecognized mode: {mode}")

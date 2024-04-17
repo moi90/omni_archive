@@ -5,21 +5,41 @@ import zipfile
 
 import pytest
 
-from omni_archive import Archive
+from omni_archive import Archive, UnknownArchiveError
 from omni_archive.tar import TarArchive
 from omni_archive.zip import ZipArchive
 
 
 @pytest.mark.parametrize("ext", [".zip", ".tar", ""])
 @pytest.mark.parametrize("compress_hint", [True, False])
-def test_Archive(tmp_path, ext, compress_hint):
+@pytest.mark.parametrize("as_str", [True, False])
+def test_Archive(tmp_path, ext, compress_hint, as_str):
     archive_path: pathlib.Path = tmp_path / ("archive" + ext)
+
+    # Check that a non-existing archive opened in read-mode fails
+    with pytest.raises(UnknownArchiveError):
+        Archive(archive_path, "r")
 
     spam_fn: pathlib.Path = tmp_path / "spam.txt"
     spam_fn.touch()
 
-    with Archive(archive_path, "w") as archive:
-        with (archive / "foo.txt").open("w") as f:
+    with Archive(str(archive_path) if as_str else archive_path, "w") as archive:
+        # Check that the archive itself can not be `open`ed
+        with pytest.raises(IsADirectoryError):
+            archive.open()
+
+        assert archive.exists()
+        assert not archive.is_file()
+        assert archive.match("*")
+
+        assert str(archive) == str(archive_path)
+
+        assert (archive / "foo.txt").match("*")
+        assert (archive / "foo.txt").name == "foo.txt"
+        assert (archive / "foo.txt").stem == "foo"
+        assert (archive / "foo.txt").suffix == ".txt"
+
+        with (archive / "foo.txt").open("w", compress_hint=compress_hint) as f:
             f.write("foo")
 
         archive.write_member("bar.txt", b"bar", compress_hint=compress_hint, mode="wb")
@@ -69,6 +89,11 @@ def test_Archive(tmp_path, ext, compress_hint):
 
         assert archive.parent == archive
 
+        # Check that members sort properly
+        assert [str(m) for m in sorted(archive.members())] == sorted(
+            [str(m) for m in archive.members()]
+        )
+
     # Writable archive is now closed
     if isinstance(archive, ZipArchive):
         assert archive._zipfile.fp is None
@@ -86,6 +111,14 @@ def test_Archive(tmp_path, ext, compress_hint):
         with (archive / "foo.txt").open("r") as f:
             contents = f.read()
         assert contents == "foo"
+
+        # Make sure that we can not write to a read-only archive
+        with pytest.raises(ValueError):
+            (archive / "ham.txt").open("w")
+
+        # Make sure that we can not read a non-existing file
+        with pytest.raises(FileNotFoundError):
+            (archive / "non-existing.txt").open("r")
 
     # Readable archive is now closed
     # Make sure the underlying archive is unloaded
