@@ -158,3 +158,6 @@ def test_Archive_nested(tmp_path, ext):
                 f.write("foo")
 
         assert sub_archive_path.is_dir()
+
+        with Archive(sub_archive_path, "r") as sub_archive:
+            assert [m.name for m in sub_archive.members()] == ["foo.txt"]

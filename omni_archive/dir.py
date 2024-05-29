@@ -5,6 +5,13 @@ from typing import IO, Iterable, Union
 from .generic import _ArchivePath, Archive
 
 
+def _iterdir_recursive(path: pathlib.Path):
+    for entry in path.iterdir():
+        yield entry
+        if entry.is_dir():
+            yield from _iterdir_recursive(entry)
+
+
 class DirectoryArchive(Archive):
     """A subclass of Archive for working with filesystem directories."""
 
@@ -43,12 +50,8 @@ class DirectoryArchive(Archive):
         super().__init__(archive_fn, mode)
 
     def members(self) -> Iterable[_ArchivePath]:
-        for root, dirs, files in os.walk(self.archive_fn):
-            relroot = os.path.relpath(root, self.archive_fn)
-            for fn in files:
-                yield _ArchivePath(
-                    self, self._pure_path_impl(os.path.join(relroot, fn))
-                )
+        for entry in _iterdir_recursive(self.archive_fn):
+            yield _ArchivePath(self, entry.relative_to(self.archive_fn))
 
     def glob(self, pattern: str, **kwargs) -> Iterable[_ArchivePath]:
         for match in self.archive_fn.glob(pattern, **kwargs):

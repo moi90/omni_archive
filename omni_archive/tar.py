@@ -138,10 +138,12 @@ class TarArchive(Archive):
         )
 
     def member_is_file(self, member_fn: str | pathlib.PurePath) -> bool:
-        # Force str type
-        member_fn = str(member_fn)
-
-        return self._members[member_fn].isfile()
+        try:
+            member = self._members[str(member_fn)]
+        except KeyError:
+            return False
+        else:
+            return member.isfile()
 
     def member_exists(self, member_fn: str | pathlib.PurePath) -> bool:
         # Force str type

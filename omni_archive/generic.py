@@ -60,6 +60,15 @@ class _ArchivePath(PathBase):
     def parent(self) -> "_ArchivePath":
         return _ArchivePath(self._archive, self._path.parent)
 
+    def relative_to(self, other) -> pathlib.PurePath:
+        if not isinstance(other, _ArchivePath):
+            raise ValueError(f"other must be _ArchivePath, got {other!r}")
+
+        if other._archive is not self._archive:
+            raise ValueError(f"other must belong to the same Archive")
+
+        return self._path.relative_to(other._path)
+
     @property
     def name(self) -> str:
         return self._path.name
