@@ -10,15 +10,28 @@ class DirectoryArchive(Archive):
 
     _extensions = [""]
 
-    # Use PurePosixPath PureWindowsPath depending on the system
-    _pure_path_impl = pathlib.PurePath
-
     @staticmethod
     def is_readable(archive_fn: Union[str, pathlib.Path]):
-        return pathlib.Path(archive_fn).is_dir()
+        if isinstance(archive_fn, str):
+            archive_fn = pathlib.Path(archive_fn)
+        return archive_fn.is_dir()
 
     def __init__(self, archive_fn: Union[str, pathlib.Path], mode: str = "r"):
-        archive_fn = pathlib.Path(archive_fn)
+        if isinstance(archive_fn, str):
+            archive_fn = pathlib.Path(archive_fn)
+
+        if isinstance(archive_fn, pathlib.PosixPath):
+            self._pure_path_impl = pathlib.PurePosixPath
+        elif isinstance(archive_fn, pathlib.WindowsPath):
+            self._pure_path_impl = pathlib.PureWindowsPath
+        elif isinstance(archive_fn, Archive):
+            self._pure_path_impl = archive_fn._pure_path_impl
+        elif isinstance(archive_fn, _ArchivePath):
+            self._pure_path_impl = archive_fn._archive._pure_path_impl
+        else:
+            raise ValueError(
+                f"Can not detect _pure_path_impl, archive_fn has unknown type: {type(archive_fn)}"
+            )
 
         # Validate mode
         if mode not in ["r", "w"]:  # pragma: no cover
@@ -54,9 +67,11 @@ class DirectoryArchive(Archive):
         if "r" not in mode and self.mode == "r":
             raise ValueError("Can not write to a read-only archive")
 
-        (self.archive_fn / member_fn).parent.mkdir(parents=True, exist_ok=True)
+        if "r" not in self.mode:
+            # Only create parent directories if the archive is writeable
+            (self.archive_fn / member_fn).parent.mkdir(parents=True, exist_ok=True)
 
-        return open(self.archive_fn / member_fn, mode, *args, **kwargs)
+        return (self.archive_fn / member_fn).open(mode, *args, **kwargs)
 
     def write_member(
         self,
@@ -85,3 +100,6 @@ class DirectoryArchive(Archive):
 
     def close(self):
         pass
+
+    def _mkdir_at(self, at: pathlib.PurePath, **kwargs):
+        return (self.archive_fn / at).mkdir(**kwargs)

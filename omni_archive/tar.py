@@ -148,3 +148,31 @@ class TarArchive(Archive):
         member_fn = str(member_fn)
 
         return member_fn in self._members
+
+    def member_is_dir(self, member_fn: str | pathlib.PurePath) -> bool:
+        try:
+            member = self._members[str(member_fn)]
+        except KeyError:
+            pass
+        else:
+            if member.isdir():
+                return True
+
+        # If the member is not found, use the generic slow method.
+        # Also, for backward compatibility, we treat a regular file whose name ends with a slash as a directory.
+
+        return super().member_is_dir(member_fn)
+
+    def _mkdir_at(self, member_fn: Union[str, pathlib.PurePath], **kwargs):
+        # Force str type
+        member_fn = str(member_fn)
+
+        # Make sure directory name ends in a slash
+        if member_fn[-1] != "/":
+            member_fn = member_fn + "/"
+
+        # TODO: Copy mode etc from kwargs
+        tar_info = tarfile.TarInfo(member_fn)
+        tar_info.type = tarfile.DIRTYPE
+        self._tarfile.addfile(tar_info)
+        self._members[tar_info.name] = tar_info

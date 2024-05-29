@@ -47,6 +47,9 @@ class _ArchivePath(PathBase):
 
         return matches(str(self._path), pattern)
 
+    def mkdir(self, **kwargs):
+        return self._archive._mkdir_at(self._path, **kwargs)
+
     def __str__(self) -> str:
         return str(self._archive.archive_fn / self._path)
 
@@ -227,6 +230,9 @@ class Archive(PathBase):
         for member in self.members():
             if member.parent._path == at:
                 yield member
+
+    def _mkdir_at(self, at: pathlib.PurePath, **kwargs):
+        raise NotImplementedError()  # pragma: no cover
 
     def close(self):  # pragma: no cover
         """

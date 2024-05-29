@@ -103,3 +103,22 @@ class ZipArchive(Archive):
         member_fn = str(member_fn)
 
         return zipfile.Path(self._zipfile, member_fn).is_file()
+
+    def member_is_dir(self, member_fn: str | pathlib.PurePath) -> bool:
+        if zipfile.Path(self._zipfile, str(member_fn)).is_dir():
+            return True
+
+        # If the member is not found, use the generic slow method.
+        # Also, for backward compatibility, we treat a regular file whose name ends with a slash as a directory.
+
+        return super().member_is_dir(member_fn)
+
+    def _mkdir_at(self, member_fn: Union[str, pathlib.PurePath], **kwargs):
+        # Force str type
+        member_fn = str(member_fn)
+
+        try:
+            self._zipfile.mkdir(member_fn, **kwargs)
+        except AttributeError:
+            # ZipFile.mkdir is only available since Python 3.11
+            pass

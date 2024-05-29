@@ -138,3 +138,23 @@ def test_Archive(tmp_path, ext, compress_hint, as_str):
         with (archive / "foo.txt").open("r") as f:
             contents = f.read()
         assert contents == "foo"
+
+
+@pytest.mark.parametrize("ext", [".zip", ".tar", ""])
+def test_Archive_nested(tmp_path, ext):
+    archive_path: pathlib.Path = tmp_path / ("archive" + ext)
+
+    # Check that a non-existing archive opened in read-mode fails
+    with pytest.raises(UnknownArchiveError):
+        Archive(archive_path, "r")
+
+    spam_fn: pathlib.Path = tmp_path / "spam.txt"
+    spam_fn.touch()
+
+    with Archive(archive_path, "w") as archive:
+        sub_archive_path = archive / "sub_archive"
+        with Archive(sub_archive_path, "w") as sub_archive:
+            with (sub_archive / "foo.txt").open("w") as f:
+                f.write("foo")
+
+        assert sub_archive_path.is_dir()
