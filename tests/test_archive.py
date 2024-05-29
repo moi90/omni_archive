@@ -46,10 +46,12 @@ def test_Archive(tmp_path, ext, compress_hint, as_str):
 
         assert (archive / "bar.txt").is_file()
         assert (archive / "bar.txt").exists()
+        assert not (archive / "baz.txt").is_dir()
 
         archive.write_member("baz.txt", io.BytesIO(b"baz"), mode="wb")
 
         assert (archive / "baz.txt").is_file()
+        assert not (archive / "baz.txt").is_dir()
 
         with open(spam_fn) as f:
             archive.write_member(spam_fn.name, f, mode="wb")
@@ -81,11 +83,14 @@ def test_Archive(tmp_path, ext, compress_hint, as_str):
             str(m) for m in dir1.glob("*")
         )
 
+        assert dir1.is_dir()
+
         # Check that the Archive behaves like a filesystem root
         root = pathlib.Path("/")
         assert archive.name == root.name
         assert archive.stem == root.stem
         assert archive.suffix == root.suffix
+        assert archive.is_dir()
 
         assert archive.parent == archive
 

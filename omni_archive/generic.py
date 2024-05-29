@@ -33,6 +33,9 @@ class _ArchivePath(PathBase):
     def is_file(self):
         return self._archive.member_is_file(self._path)
 
+    def is_dir(self):
+        return self._archive.member_is_dir(self._path)
+
     def glob(self, pattern: str, **kwargs) -> Iterable["_ArchivePath"]:
         return self._archive.glob(str(self._path / pattern), **kwargs)
 
@@ -135,6 +138,9 @@ class Archive(PathBase):
     def is_file(self):
         return False
 
+    def is_dir(self):
+        return True
+
     def open_member(
         self,
         member_fn: Union[str, pathlib.PurePath],
@@ -175,6 +181,23 @@ class Archive(PathBase):
     def member_is_file(self, member_fn: Union[str, pathlib.PurePath]) -> bool:
         """Check if a member is a regular file."""
         raise NotImplementedError()  # pragma: no cover
+
+    def member_is_dir(self, member_fn: Union[str, pathlib.PurePath]) -> bool:
+        """Check if a member is a directory."""
+
+        # This default implementation checks if the supplied member_fn is the parent
+        # of any member contained in the archive.
+        # This can be slow but it is guaranteed to work with archives
+        # that don't explicitely store directories.
+
+        if isinstance(member_fn, str):
+            member_fn = self._pure_path_impl(member_fn)
+
+        for member in self.members():
+            if member.parent._path == member_fn:
+                return True
+
+        return False
 
     def glob(self, pattern: str, **kwargs) -> Iterable[_ArchivePath]:
         # We use fnmatch2 here, instead of member.match.

@@ -77,6 +77,9 @@ class DirectoryArchive(Archive):
     def member_is_file(self, member_fn: str | pathlib.PurePath) -> bool:
         return (self.archive_fn / member_fn).is_file()
 
+    def member_is_dir(self, member_fn: str | pathlib.PurePath) -> bool:
+        return (self.archive_fn / member_fn).is_dir()
+
     def member_exists(self, member_fn: str | pathlib.PurePath) -> bool:
         return (self.archive_fn / member_fn).exists()
 
