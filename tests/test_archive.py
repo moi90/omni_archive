@@ -161,3 +161,19 @@ def test_Archive_nested(tmp_path, ext):
 
         with Archive(sub_archive_path, "r") as sub_archive:
             assert [m.name for m in sub_archive.members()] == ["foo.txt"]
+
+
+@pytest.mark.parametrize("ext", [".zip", ".tar", ""])
+def test_Archive_comparison(tmp_path, ext):
+    archive0_path: pathlib.Path = tmp_path / ("archive0" + ext)
+    archive1_path: pathlib.Path = tmp_path / ("archive1" + ext)
+
+    with Archive(archive0_path, "w") as archive0:
+        file0 = archive0 / "file.txt"
+        file0.touch()
+
+    with Archive(archive1_path, "w") as archive1:
+        file1 = archive1 / "file.txt"
+        file1.touch()
+
+    assert file0 < file1

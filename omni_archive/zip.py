@@ -122,3 +122,6 @@ class ZipArchive(Archive):
         except AttributeError:
             # ZipFile.mkdir is only available since Python 3.11
             pass
+
+    def _touch_at(self, at: pathlib.PurePath, **kwargs):
+        self.write_member(str(at), b"")

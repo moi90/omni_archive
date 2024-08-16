@@ -106,3 +106,6 @@ class DirectoryArchive(Archive):
 
     def _mkdir_at(self, at: pathlib.PurePath, **kwargs):
         return (self.archive_fn / at).mkdir(**kwargs)
+
+    def _touch_at(self, at: pathlib.PurePath, **kwargs):
+        return (self.archive_fn / at).touch(**kwargs)

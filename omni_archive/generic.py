@@ -69,6 +69,9 @@ class _ArchivePath(PathBase):
 
         return self._path.relative_to(other._path)
 
+    def touch(self, **kwargs):
+        return self._archive._touch_at(self._path, **kwargs)
+
     @property
     def name(self) -> str:
         return self._path.name
@@ -85,8 +88,8 @@ class _ArchivePath(PathBase):
         if not isinstance(other, _ArchivePath):  # pragma: no cover
             return NotImplemented
 
-        if self._archive.archive_fn != other._archive.archive_fn:  # pragma: no cover
-            return NotImplemented
+        if self._archive.archive_fn != other._archive.archive_fn:
+            return self._archive.archive_fn < other._archive.archive_fn
 
         return self._path < other._path
 
@@ -241,6 +244,9 @@ class Archive(PathBase):
                 yield member
 
     def _mkdir_at(self, at: pathlib.PurePath, **kwargs):
+        raise NotImplementedError()  # pragma: no cover
+
+    def _touch_at(self, at: pathlib.PurePath, **kwargs):
         raise NotImplementedError()  # pragma: no cover
 
     def close(self):  # pragma: no cover

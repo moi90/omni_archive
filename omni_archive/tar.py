@@ -178,3 +178,6 @@ class TarArchive(Archive):
         tar_info.type = tarfile.DIRTYPE
         self._tarfile.addfile(tar_info)
         self._members[tar_info.name] = tar_info
+
+    def _touch_at(self, at: pathlib.PurePath, **kwargs):
+        self.write_member(str(at), b"")
