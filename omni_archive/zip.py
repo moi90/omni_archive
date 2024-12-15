@@ -59,7 +59,7 @@ class ZipArchive(Archive):
             return stream
 
         # Text mode
-        kwargs["encoding"] = io.text_encoding(kwargs.get("encoding"))
+        kwargs["encoding"] = kwargs.get("encoding", None) or "utf-8"
         return io.TextIOWrapper(stream, *args, **kwargs)
 
     def write_member(
