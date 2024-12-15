@@ -17,3 +17,7 @@ style = "pep440"
 versionfile_source = "omni_archive/_version.py"
 versionfile_build = "omni_archive/_version.py"
 tag_prefix = "v"
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["omni_archive/_version.py"]

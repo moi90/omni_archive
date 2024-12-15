@@ -29,7 +29,7 @@ setup(
             "sphinx_rtd_theme",
             "sphinx-autodoc-typehints>=1.10.0",
         ],
-        "dev": ["black"],
+        "dev": ["ruff", "versioneer", "setuptools"],
     },
     classifiers=[
         "Programming Language :: Python :: 3",

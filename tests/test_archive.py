@@ -70,18 +70,14 @@ def test_Archive(tmp_path, ext, compress_hint, as_str):
             str(archive_path / "baz.txt"),
         }
 
-        assert set(str(m) for m in archive.iterdir()) == set(
-            str(m) for m in archive.glob("*")
-        )
+        assert set(str(m) for m in archive.iterdir()) == set(str(m) for m in archive.glob("*"))
 
         dir1 = archive / "dir1"
 
         with (dir1 / "foo.txt").open("w") as f:
             f.write("foo")
 
-        assert set(str(m) for m in dir1.iterdir()) == set(
-            str(m) for m in dir1.glob("*")
-        )
+        assert set(str(m) for m in dir1.iterdir()) == set(str(m) for m in dir1.glob("*"))
 
         assert dir1.is_dir()
 

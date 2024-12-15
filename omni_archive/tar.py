@@ -1,9 +1,12 @@
 import functools
-import pathlib
-from typing import IO, Iterable, Union
-from .generic import _ArchivePath, Archive
-import tarfile
 import io
+import pathlib
+import tarfile
+from typing import IO, Iterable, Union
+
+from pathlib_abc import PathBase
+
+from .generic import Archive, _ArchivePath
 
 
 class _TarIO(io.BytesIO):
@@ -40,7 +43,7 @@ class TarArchive(Archive):
     _pure_path_impl = pathlib.PurePosixPath
 
     @staticmethod
-    def is_readable(archive_fn: Union[str, pathlib.Path]):
+    def is_readable(archive_fn: Union[str, pathlib.Path, PathBase]):
         if isinstance(archive_fn, str):
             archive_fn = pathlib.Path(archive_fn)
         return archive_fn.is_file() and tarfile.is_tarfile(archive_fn)
@@ -57,7 +60,7 @@ class TarArchive(Archive):
                 self.__dict__.pop("_tarfile", None)
                 self.__dict__.pop("_members", None)
 
-    def open_member(
+    def open_at(
         self,
         member_fn: Union[str, pathlib.PurePath],
         mode="r",
@@ -124,20 +127,15 @@ class TarArchive(Archive):
             tar_info = tarfile.TarInfo(member_fn)
             tar_info.size = len(fileobj_or_bytes.getbuffer())
         else:
-            tar_info = self._tarfile.gettarinfo(
-                arcname=member_fn, fileobj=fileobj_or_bytes
-            )
+            tar_info = self._tarfile.gettarinfo(arcname=member_fn, fileobj=fileobj_or_bytes)
 
         self._tarfile.addfile(tar_info, fileobj=fileobj_or_bytes)
         self._members[tar_info.name] = tar_info
 
     def members(self) -> Iterable[_ArchivePath]:
-        return (
-            _ArchivePath(self, self._pure_path_impl(name))
-            for name in self._members.keys()
-        )
+        return (_ArchivePath(self, self._pure_path_impl(name)) for name in self._members.keys())
 
-    def member_is_file(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_file_at(self, member_fn: str | pathlib.PurePath) -> bool:
         try:
             member = self._members[str(member_fn)]
         except KeyError:
@@ -145,13 +143,13 @@ class TarArchive(Archive):
         else:
             return member.isfile()
 
-    def member_exists(self, member_fn: str | pathlib.PurePath) -> bool:
+    def exists_at(self, member_fn: str | pathlib.PurePath) -> bool:
         # Force str type
         member_fn = str(member_fn)
 
         return member_fn in self._members
 
-    def member_is_dir(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_dir_at(self, member_fn: str | pathlib.PurePath) -> bool:
         try:
             member = self._members[str(member_fn)]
         except KeyError:
@@ -163,9 +161,9 @@ class TarArchive(Archive):
         # If the member is not found, use the generic slow method.
         # Also, for backward compatibility, we treat a regular file whose name ends with a slash as a directory.
 
-        return super().member_is_dir(member_fn)
+        return super().is_dir_at(member_fn)
 
-    def _mkdir_at(self, member_fn: Union[str, pathlib.PurePath], **kwargs):
+    def mkdir_at(self, member_fn: Union[str, pathlib.PurePath], **kwargs):
         # Force str type
         member_fn = str(member_fn)
 
@@ -179,5 +177,5 @@ class TarArchive(Archive):
         self._tarfile.addfile(tar_info)
         self._members[tar_info.name] = tar_info
 
-    def _touch_at(self, at: pathlib.PurePath, **kwargs):
+    def touch_at(self, at: pathlib.PurePath, **kwargs):
         self.write_member(str(at), b"")

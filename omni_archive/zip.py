@@ -1,9 +1,12 @@
 import functools
 import io
 import pathlib
-from typing import IO, Iterable, Union
 import zipfile
-from .generic import _ArchivePath, Archive
+from typing import IO, Iterable, Union
+
+from pathlib_abc import PathBase
+
+from .generic import Archive, _ArchivePath
 
 
 class ZipArchive(Archive):
@@ -13,22 +16,19 @@ class ZipArchive(Archive):
     _pure_path_impl = pathlib.PurePosixPath
 
     @staticmethod
-    def is_readable(archive_fn: Union[str, pathlib.Path]):
+    def is_readable(archive_fn: Union[str, pathlib.Path, PathBase]):
         if isinstance(archive_fn, str):
             archive_fn = pathlib.Path(archive_fn)
-        return archive_fn.is_file() and zipfile.is_zipfile(archive_fn)
+        return archive_fn.is_file() and zipfile.is_zipfile(archive_fn)  # type: ignore
 
     @functools.cached_property
     def _zipfile(self):
-        return zipfile.ZipFile(self.archive_fn, self.mode)
+        return zipfile.ZipFile(self.archive_fn, self.mode)  # type: ignore
 
     def members(self) -> Iterable[_ArchivePath]:
-        return (
-            _ArchivePath(self, self._pure_path_impl(name))
-            for name in self._zipfile.namelist()
-        )
+        return (_ArchivePath(self, self._pure_path_impl(name)) for name in self._zipfile.namelist())
 
-    def open_member(
+    def open_at(
         self,
         member_fn: Union[str, pathlib.PurePath],
         mode="r",
@@ -92,36 +92,69 @@ class ZipArchive(Archive):
                 # Remove cached ZipFile instance so that it can be transparently reopened
                 self.__dict__.pop("_zipfile", None)
 
-    def member_exists(self, member_fn: str | pathlib.PurePath) -> bool:
+    def exists_at(self, member_fn: str | pathlib.PurePath) -> bool:
         # Force str type
         member_fn = str(member_fn)
 
         return zipfile.Path(self._zipfile, member_fn).exists()
 
-    def member_is_file(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_file_at(self, member_fn: str | pathlib.PurePath) -> bool:
         # Force str type
         member_fn = str(member_fn)
 
         return zipfile.Path(self._zipfile, member_fn).is_file()
 
-    def member_is_dir(self, member_fn: str | pathlib.PurePath) -> bool:
-        if zipfile.Path(self._zipfile, str(member_fn)).is_dir():
-            return True
+    def is_dir_at(self, member_fn: str | pathlib.PurePath) -> bool:
+        """
+        Check if a member is a directory, i.e. it exists as a dir or as a parent of a file and is not a file.
+        """
+        member_fn = str(member_fn)
+
+        if member_fn.endswith("/"):
+            if zipfile.Path(self._zipfile, member_fn).exists():
+                return True
+        else:
+            if zipfile.Path(self._zipfile, member_fn).exists():
+                return False
+
+            if zipfile.Path(self._zipfile, member_fn + "/").exists():
+                return True
 
         # If the member is not found, use the generic slow method.
         # Also, for backward compatibility, we treat a regular file whose name ends with a slash as a directory.
+        return super().is_dir_at(member_fn)
 
-        return super().member_is_dir(member_fn)
-
-    def _mkdir_at(self, member_fn: Union[str, pathlib.PurePath], **kwargs):
-        # Force str type
-        member_fn = str(member_fn)
-
+    def mkdir_at(self, member_fn: Union[str, pathlib.PurePath], **kwargs):
+        # Check, if mkdir is supported
         try:
-            self._zipfile.mkdir(member_fn, **kwargs)
+            mkdir = self._zipfile.mkdir
         except AttributeError:
             # ZipFile.mkdir is only available since Python 3.11
-            pass
+            # (but directories are optional, anyhow)
+            return
 
-    def _touch_at(self, at: pathlib.PurePath, **kwargs):
+        # ZipFile.mkdir does not support these parameters
+        kwargs.pop("parents", False)
+        exist_ok = kwargs.pop("exist_ok", False)
+
+        # Convert to str
+        if not isinstance(member_fn, str):
+            member_fn = str(member_fn)
+
+        if not member_fn.endswith("/"):
+            member_fn += "/"
+
+        # Check if a file exists (without ending slash)
+        if zipfile.Path(self._zipfile, (member_fn[:-1])).exists():
+            raise FileExistsError(member_fn)
+
+        # Check if a directory exists
+        if zipfile.Path(self._zipfile, (member_fn)).exists():
+            if exist_ok:
+                return
+            raise FileExistsError(member_fn)
+
+        mkdir(member_fn, **kwargs)
+
+    def touch_at(self, at: pathlib.PurePath, **kwargs):
         self.write_member(str(at), b"")

@@ -1,8 +1,10 @@
-import os
 import pathlib
 import shutil
 from typing import IO, Iterable, Union
-from .generic import _ArchivePath, Archive
+
+from pathlib_abc import PathBase
+
+from .generic import Archive, _ArchivePath
 
 
 def _iterdir_recursive(path: pathlib.Path):
@@ -18,7 +20,7 @@ class DirectoryArchive(Archive):
     _extensions = [""]
 
     @staticmethod
-    def is_readable(archive_fn: Union[str, pathlib.Path]):
+    def is_readable(archive_fn: Union[str, pathlib.Path, PathBase]):
         if isinstance(archive_fn, str):
             archive_fn = pathlib.Path(archive_fn)
         return archive_fn.is_dir()
@@ -57,7 +59,7 @@ class DirectoryArchive(Archive):
         for match in self.archive_fn.glob(pattern, **kwargs):
             yield _ArchivePath(self, match.relative_to(self.archive_fn))
 
-    def open_member(
+    def open_at(
         self,
         member_fn: Union[str, pathlib.PurePath],
         mode="r",
@@ -86,26 +88,26 @@ class DirectoryArchive(Archive):
     ):
         del compress_hint
 
-        with self.open_member(member_fn, mode) as f:
+        with self.open_at(member_fn, mode) as f:
             if hasattr(fileobj_or_bytes, "read"):
                 shutil.copyfileobj(fileobj_or_bytes, f)
             else:
                 f.write(fileobj_or_bytes)
 
-    def member_is_file(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_file_at(self, member_fn: str | pathlib.PurePath) -> bool:
         return (self.archive_fn / member_fn).is_file()
 
-    def member_is_dir(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_dir_at(self, member_fn: str | pathlib.PurePath) -> bool:
         return (self.archive_fn / member_fn).is_dir()
 
-    def member_exists(self, member_fn: str | pathlib.PurePath) -> bool:
+    def exists_at(self, member_fn: str | pathlib.PurePath) -> bool:
         return (self.archive_fn / member_fn).exists()
 
     def close(self):
         pass
 
-    def _mkdir_at(self, at: pathlib.PurePath, **kwargs):
+    def mkdir_at(self, at: pathlib.PurePath, **kwargs):
         return (self.archive_fn / at).mkdir(**kwargs)
 
-    def _touch_at(self, at: pathlib.PurePath, **kwargs):
+    def touch_at(self, at: pathlib.PurePath, **kwargs):
         return (self.archive_fn / at).touch(**kwargs)
