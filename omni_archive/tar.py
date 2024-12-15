@@ -4,7 +4,7 @@ import pathlib
 import tarfile
 from typing import IO, Iterable, Union
 
-from pathlib_abc import PathBase
+from pathlib_abc import PathBase, PurePathBase
 
 from .generic import Archive, _ArchivePath
 
@@ -62,7 +62,7 @@ class TarArchive(Archive):
 
     def open_at(
         self,
-        member_fn: Union[str, pathlib.PurePath],
+        member_fn: Union[str, pathlib.PurePath, PathBase],
         mode="r",
         *args,
         compress_hint=True,
@@ -135,7 +135,7 @@ class TarArchive(Archive):
     def members(self) -> Iterable[_ArchivePath]:
         return (_ArchivePath(self, self._pure_path_impl(name)) for name in self._members.keys())
 
-    def is_file_at(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_file_at(self, member_fn: Union[str, pathlib.PurePath, PathBase]) -> bool:
         try:
             member = self._members[str(member_fn)]
         except KeyError:
@@ -143,13 +143,13 @@ class TarArchive(Archive):
         else:
             return member.isfile()
 
-    def exists_at(self, member_fn: str | pathlib.PurePath) -> bool:
+    def exists_at(self, member_fn: Union[str, pathlib.PurePath, PathBase]) -> bool:
         # Force str type
         member_fn = str(member_fn)
 
         return member_fn in self._members
 
-    def is_dir_at(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_dir_at(self, member_fn: Union[str, pathlib.PurePath, PathBase]) -> bool:
         try:
             member = self._members[str(member_fn)]
         except KeyError:
@@ -163,7 +163,7 @@ class TarArchive(Archive):
 
         return super().is_dir_at(member_fn)
 
-    def mkdir_at(self, member_fn: Union[str, pathlib.PurePath], **kwargs):
+    def mkdir_at(self, member_fn: Union[str, pathlib.PurePath, PathBase], **kwargs):
         # Force str type
         member_fn = str(member_fn)
 
@@ -177,5 +177,5 @@ class TarArchive(Archive):
         self._tarfile.addfile(tar_info)
         self._members[tar_info.name] = tar_info
 
-    def touch_at(self, at: pathlib.PurePath, **kwargs):
+    def touch_at(self, at: Union[pathlib.PurePath, PurePathBase], **kwargs):
         self.write_member(str(at), b"")

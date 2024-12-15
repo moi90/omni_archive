@@ -1,9 +1,9 @@
 import fnmatch
 import pathlib
-from typing import IO, Iterable, List, Optional, Type, Union
+from typing import IO, Iterable, List, Type, Union
 
 import fnmatch2
-from pathlib_abc import PathBase
+from pathlib_abc import PathBase, PurePathBase
 
 
 class UnknownArchiveError(Exception):
@@ -15,14 +15,14 @@ class UnknownArchiveError(Exception):
 class _ArchivePath(PathBase):
     """Represents a path within an archive."""
 
-    def __init__(self, archive: "Archive", path: pathlib.PurePath) -> None:
+    def __init__(self, archive: "Archive", path: Union[pathlib.PurePath, PurePathBase]) -> None:
         self._archive = archive
         self._path = path
 
     def open(self, mode="r", compress_hint=True, **kwargs) -> IO:
         return self._archive.open_at(self._path, mode, compress_hint=compress_hint, **kwargs)
 
-    def __truediv__(self, key: Union[str, pathlib.PurePath]):
+    def __truediv__(self, key: Union[str, pathlib.PurePath, PathBase]):
         return _ArchivePath(self._archive, self._path / key)
 
     def exists(self):
@@ -58,14 +58,14 @@ class _ArchivePath(PathBase):
     def parent(self) -> "_ArchivePath":
         return _ArchivePath(self._archive, self._path.parent)
 
-    def relative_to(self, other) -> pathlib.PurePath:
+    def relative_to(self, other) -> Union[pathlib.PurePath, PurePathBase]:
         if not isinstance(other, _ArchivePath):
             raise ValueError(f"other must be _ArchivePath, got {other!r}")
 
         if other._archive is not self._archive:
             raise ValueError("other must belong to the same Archive")
 
-        return self._path.relative_to(other._path)
+        return self._path.relative_to(other._path)  # type: ignore
 
     def touch(self, **kwargs):
         return self._archive.touch_at(self._path, **kwargs)
@@ -152,7 +152,7 @@ class Archive(PathBase):
 
     def open_at(
         self,
-        member_fn: Union[str, pathlib.PurePath],
+        member_fn: Union[str, pathlib.PurePath, PurePathBase],
         mode="r",
         *args,
         compress_hint=True,
@@ -171,7 +171,7 @@ class Archive(PathBase):
 
     def write_member(
         self,
-        member_fn: Union[str, pathlib.PurePath],
+        member_fn: Union[str, pathlib.PurePath, PurePathBase],
         fileobj_or_bytes: Union[IO, bytes],
         *,
         compress_hint=True,
@@ -183,15 +183,15 @@ class Archive(PathBase):
     def members(self) -> Iterable[_ArchivePath]:
         raise NotImplementedError()  # pragma: no cover
 
-    def exists_at(self, member_fn: Union[str, pathlib.PurePath]) -> bool:
+    def exists_at(self, member_fn: Union[str, pathlib.PurePath, PurePathBase]) -> bool:
         """Check if a member exists."""
         raise NotImplementedError()  # pragma: no cover
 
-    def is_file_at(self, member_fn: Union[str, pathlib.PurePath]) -> bool:
+    def is_file_at(self, member_fn: Union[str, pathlib.PurePath, PurePathBase]) -> bool:
         """Check if a member is a regular file."""
         raise NotImplementedError()  # pragma: no cover
 
-    def is_dir_at(self, member_fn: Union[str, pathlib.PurePath]) -> bool:
+    def is_dir_at(self, member_fn: Union[str, pathlib.PurePath, PurePathBase]) -> bool:
         """Check if a member is a directory."""
 
         # This default implementation checks if the supplied member_fn is the parent
@@ -225,7 +225,9 @@ class Archive(PathBase):
     def iterdir(self) -> Iterable["_ArchivePath"]:
         return self.iterdir_at()
 
-    def iterdir_at(self, at: Optional[pathlib.PurePath] = None) -> Iterable[_ArchivePath]:
+    def iterdir_at(
+        self, at: Union[pathlib.PurePath, PurePathBase, None] = None
+    ) -> Iterable[_ArchivePath]:
         if at is None:
             at = self._pure_path_impl(".")
 
@@ -233,10 +235,10 @@ class Archive(PathBase):
             if member.parent._path == at:
                 yield member
 
-    def mkdir_at(self, at: pathlib.PurePath, **kwargs):
+    def mkdir_at(self, at: Union[pathlib.PurePath, PurePathBase], **kwargs):
         raise NotImplementedError()  # pragma: no cover
 
-    def touch_at(self, at: pathlib.PurePath, **kwargs):
+    def touch_at(self, at: Union[pathlib.PurePath, PurePathBase], **kwargs):
         raise NotImplementedError()  # pragma: no cover
 
     def close(self):  # pragma: no cover
@@ -253,7 +255,7 @@ class Archive(PathBase):
     def __exit__(self, *_, **__):
         self.close()
 
-    def __truediv__(self, key: Union[str, pathlib.PurePath]) -> _ArchivePath:
+    def __truediv__(self, key: Union[str, pathlib.PurePath, PathBase]) -> _ArchivePath:
         if isinstance(key, str):
             key = self._pure_path_impl(key)
 

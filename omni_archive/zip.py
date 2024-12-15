@@ -4,7 +4,7 @@ import pathlib
 import zipfile
 from typing import IO, Iterable, Union
 
-from pathlib_abc import PathBase
+from pathlib_abc import PathBase, PurePathBase
 
 from .generic import Archive, _ArchivePath
 
@@ -30,7 +30,7 @@ class ZipArchive(Archive):
 
     def open_at(
         self,
-        member_fn: Union[str, pathlib.PurePath],
+        member_fn: Union[str, pathlib.PurePath, PathBase],
         mode="r",
         *args,
         compress_hint=True,
@@ -92,19 +92,19 @@ class ZipArchive(Archive):
                 # Remove cached ZipFile instance so that it can be transparently reopened
                 self.__dict__.pop("_zipfile", None)
 
-    def exists_at(self, member_fn: str | pathlib.PurePath) -> bool:
+    def exists_at(self, member_fn: Union[str, pathlib.PurePath, PathBase]) -> bool:
         # Force str type
         member_fn = str(member_fn)
 
         return zipfile.Path(self._zipfile, member_fn).exists()
 
-    def is_file_at(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_file_at(self, member_fn: Union[str, pathlib.PurePath, PathBase]) -> bool:
         # Force str type
         member_fn = str(member_fn)
 
         return zipfile.Path(self._zipfile, member_fn).is_file()
 
-    def is_dir_at(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_dir_at(self, member_fn: Union[str, pathlib.PurePath, PathBase]) -> bool:
         """
         Check if a member is a directory, i.e. it exists as a dir or as a parent of a file and is not a file.
         """
@@ -124,7 +124,7 @@ class ZipArchive(Archive):
         # Also, for backward compatibility, we treat a regular file whose name ends with a slash as a directory.
         return super().is_dir_at(member_fn)
 
-    def mkdir_at(self, member_fn: Union[str, pathlib.PurePath], **kwargs):
+    def mkdir_at(self, member_fn: Union[str, pathlib.PurePath, PathBase], **kwargs):
         # Check, if mkdir is supported
         try:
             mkdir = self._zipfile.mkdir
@@ -156,5 +156,5 @@ class ZipArchive(Archive):
 
         mkdir(member_fn, **kwargs)
 
-    def touch_at(self, at: pathlib.PurePath, **kwargs):
+    def touch_at(self, at: Union[pathlib.PurePath, PurePathBase], **kwargs):
         self.write_member(str(at), b"")

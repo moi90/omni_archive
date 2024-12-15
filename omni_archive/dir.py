@@ -1,13 +1,15 @@
 import pathlib
 import shutil
-from typing import IO, Iterable, Union
+from typing import IO, Iterable, Iterator, Union
 
-from pathlib_abc import PathBase
+from pathlib_abc import PathBase, PurePathBase
 
 from .generic import Archive, _ArchivePath
 
 
-def _iterdir_recursive(path: pathlib.Path):
+def _iterdir_recursive(
+    path: Union[pathlib.Path, PathBase],
+) -> Iterator[Union[pathlib.Path, PathBase]]:
     for entry in path.iterdir():
         yield entry
         if entry.is_dir():
@@ -53,15 +55,15 @@ class DirectoryArchive(Archive):
 
     def members(self) -> Iterable[_ArchivePath]:
         for entry in _iterdir_recursive(self.archive_fn):
-            yield _ArchivePath(self, entry.relative_to(self.archive_fn))
+            yield _ArchivePath(self, entry.relative_to(self.archive_fn))  # type: ignore
 
     def glob(self, pattern: str, **kwargs) -> Iterable[_ArchivePath]:
         for match in self.archive_fn.glob(pattern, **kwargs):
-            yield _ArchivePath(self, match.relative_to(self.archive_fn))
+            yield _ArchivePath(self, match.relative_to(self.archive_fn))  # type: ignore
 
     def open_at(
         self,
-        member_fn: Union[str, pathlib.PurePath],
+        member_fn: Union[str, pathlib.PurePath, PathBase],
         mode="r",
         *args,
         compress_hint=True,
@@ -80,7 +82,7 @@ class DirectoryArchive(Archive):
 
     def write_member(
         self,
-        member_fn: Union[str, pathlib.PurePath],
+        member_fn: Union[str, pathlib.PurePath, PathBase],
         fileobj_or_bytes: Union[IO, bytes],
         *,
         compress_hint=True,
@@ -90,24 +92,24 @@ class DirectoryArchive(Archive):
 
         with self.open_at(member_fn, mode) as f:
             if hasattr(fileobj_or_bytes, "read"):
-                shutil.copyfileobj(fileobj_or_bytes, f)
+                shutil.copyfileobj(fileobj_or_bytes, f)  # type: ignore
             else:
                 f.write(fileobj_or_bytes)
 
-    def is_file_at(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_file_at(self, member_fn: Union[str, pathlib.PurePath, PathBase]) -> bool:
         return (self.archive_fn / member_fn).is_file()
 
-    def is_dir_at(self, member_fn: str | pathlib.PurePath) -> bool:
+    def is_dir_at(self, member_fn: Union[str, pathlib.PurePath, PathBase]) -> bool:
         return (self.archive_fn / member_fn).is_dir()
 
-    def exists_at(self, member_fn: str | pathlib.PurePath) -> bool:
+    def exists_at(self, member_fn: Union[str, pathlib.PurePath, PathBase]) -> bool:
         return (self.archive_fn / member_fn).exists()
 
     def close(self):
         pass
 
-    def mkdir_at(self, at: pathlib.PurePath, **kwargs):
-        return (self.archive_fn / at).mkdir(**kwargs)
+    def mkdir_at(self, at: Union[pathlib.PurePath, PurePathBase], **kwargs):
+        return (self.archive_fn / at).mkdir(**kwargs)  # type: ignore
 
-    def touch_at(self, at: pathlib.PurePath, **kwargs):
-        return (self.archive_fn / at).touch(**kwargs)
+    def touch_at(self, at: Union[pathlib.PurePath, PurePathBase], **kwargs):
+        return (self.archive_fn / at).touch(**kwargs)  # type: ignore
