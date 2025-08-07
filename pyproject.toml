@@ -39,8 +39,6 @@ docs = [
 ]
 dev = [
     "ruff",
-    "versioneer",
-    "setuptools"
 ]
 
 [tool.coverage.report]
@@ -59,4 +57,4 @@ extend-exclude = ["omni_archive/_version.py"]
 source = "vcs"
 
 [tool.hatch.build.hooks.vcs]
-version-file = "_version.py"
+version-file = "omni_archive/_version.py"
