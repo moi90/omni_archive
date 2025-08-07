@@ -611,16 +611,12 @@ name = "omni-archive"
 source = { editable = "." }
 dependencies = [
     { name = "fnmatch2" },
-    { name = "pathlib-abc", version = "0.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "pathlib-abc", version = "0.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "pathlib-abc" },
 ]
 
 [package.optional-dependencies]
 dev = [
     { name = "ruff" },
-    { name = "setuptools", version = "75.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "setuptools", version = "80.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
-    { name = "versioneer" },
 ]
 docs = [
     { name = "sphinx", version = "7.1.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
@@ -643,15 +639,13 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "fnmatch2" },
-    { name = "pathlib-abc" },
+    { name = "pathlib-abc", specifier = "<=0.3.1" },
     { name = "pytest", marker = "extra == 'test'" },
     { name = "pytest-cov", marker = "extra == 'test'" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "setuptools", marker = "extra == 'dev'" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = ">=1.4" },
     { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'", specifier = ">=1.10.0" },
     { name = "sphinx-rtd-theme", marker = "extra == 'docs'" },
-    { name = "versioneer", marker = "extra == 'dev'" },
 ]
 provides-extras = ["dev", "docs", "test"]
 
@@ -668,26 +662,9 @@ wheels = [
 name = "pathlib-abc"
 version = "0.3.1"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.9'",
-]
 sdist = { url = "https://files.pythonhosted.org/packages/ac/ad/ea0633425985a1b56617a25ae2d98540c6bef5391f6370ea0cf39414f86c/pathlib_abc-0.3.1.tar.gz", hash = "sha256:811395d2793a1c675ff79c3246d3d6b41a0f96a3a1479c2e96c56b0a51402227", size = 35037, upload-time = "2024-06-09T20:25:39.293Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fe/84/6f185293ce80976d2c28eebc0e270f6302396cbcb846db1301e7f713c3e3/pathlib_abc-0.3.1-py3-none-any.whl", hash = "sha256:e83667be72c54cc0acc48e8429bfb88d13a207d3cd77a2556eeb9b995d11fee1", size = 17053, upload-time = "2024-06-09T20:25:38.357Z" },
-]
-
-[[package]]
-name = "pathlib-abc"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.11'",
-    "python_full_version == '3.10.*'",
-    "python_full_version == '3.9.*'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/80/02/a82193fb927defaf846bd675357c4c393845c11ae6a23ac5c75c98499301/pathlib_abc-0.5.0.tar.gz", hash = "sha256:469c9e5402c6d3007d11c4062eb6651300a425d670c913b4bc4bd78199cec2c3", size = 34485, upload-time = "2025-07-27T13:24:31.397Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/27/65/71dbd99f54f6f790abfe4579ad9b59b4a399a638497d0bd8f8789bd77b24/pathlib_abc-0.5.0-py3-none-any.whl", hash = "sha256:ccbb31751e65a2ae46650bf3af45d9cbc59286bf12139dfeaae762e3aa49189d", size = 20701, upload-time = "2025-07-27T13:24:30.177Z" },
 ]
 
 [[package]]
@@ -860,32 +837,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/77/ab/aca2e756ad7b09b3d662a41773f3edcbd262872a4fc81f920dc1ffa44541/ruff-0.12.7-py3-none-win32.whl", hash = "sha256:c928f1b2ec59fb77dfdf70e0419408898b63998789cc98197e15f560b9e77f77", size = 11756687, upload-time = "2025-07-29T22:32:29.381Z" },
     { url = "https://files.pythonhosted.org/packages/b4/71/26d45a5042bc71db22ddd8252ca9d01e9ca454f230e2996bb04f16d72799/ruff-0.12.7-py3-none-win_amd64.whl", hash = "sha256:9c18f3d707ee9edf89da76131956aba1270c6348bfee8f6c647de841eac7194f", size = 12912365, upload-time = "2025-07-29T22:32:31.517Z" },
     { url = "https://files.pythonhosted.org/packages/4c/9b/0b8aa09817b63e78d94b4977f18b1fcaead3165a5ee49251c5d5c245bb2d/ruff-0.12.7-py3-none-win_arm64.whl", hash = "sha256:dfce05101dbd11833a0776716d5d1578641b7fddb537fe7fa956ab85d1769b69", size = 11982083, upload-time = "2025-07-29T22:32:33.881Z" },
-]
-
-[[package]]
-name = "setuptools"
-version = "75.3.2"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.9'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5c/01/771ea46cce201dd42cff043a5eea929d1c030fb3d1c2ee2729d02ca7814c/setuptools-75.3.2.tar.gz", hash = "sha256:3c1383e1038b68556a382c1e8ded8887cd20141b0eb5708a6c8d277de49364f5", size = 1354489, upload-time = "2025-03-12T00:02:19.004Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/65/3f0dba35760d902849d39d38c0a72767794b1963227b69a587f8a336d08c/setuptools-75.3.2-py3-none-any.whl", hash = "sha256:90ab613b6583fc02d5369cbca13ea26ea0e182d1df2d943ee9cbe81d4c61add9", size = 1251198, upload-time = "2025-03-12T00:02:17.554Z" },
-]
-
-[[package]]
-name = "setuptools"
-version = "80.9.0"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.11'",
-    "python_full_version == '3.10.*'",
-    "python_full_version == '3.9.*'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/18/5d/3bf57dcd21979b887f014ea83c24ae194cfcd12b9e0fda66b957c69d1fca/setuptools-80.9.0.tar.gz", hash = "sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c", size = 1319958, upload-time = "2025-05-27T00:56:51.443Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a3/dc/17031897dae0efacfea57dfd3a82fdd2a2aeb58e0ff71b77b87e44edc772/setuptools-80.9.0-py3-none-any.whl", hash = "sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922", size = 1201486, upload-time = "2025-05-27T00:56:49.664Z" },
 ]
 
 [[package]]
@@ -1342,15 +1293,6 @@ resolution-markers = [
 sdist = { url = "https://files.pythonhosted.org/packages/15/22/9ee70a2574a4f4599c47dd506532914ce044817c7752a79b6a51286319bc/urllib3-2.5.0.tar.gz", hash = "sha256:3fc47733c7e419d4bc3f6b3dc2b4f890bb743906a30d56ba4a5bfa4bbff92760", size = 393185, upload-time = "2025-06-18T14:07:41.644Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl", hash = "sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc", size = 129795, upload-time = "2025-06-18T14:07:40.39Z" },
-]
-
-[[package]]
-name = "versioneer"
-version = "0.29"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/32/d7/854e45d2b03e1a8ee2aa6429dd396d002ce71e5d88b77551b2fb249cb382/versioneer-0.29.tar.gz", hash = "sha256:5ab283b9857211d61b53318b7c792cf68e798e765ee17c27ade9f6c924235731", size = 75141, upload-time = "2023-07-07T15:09:28.131Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b0/79/f0f1ca286b78f6f33c521a36b5cbd5bd697c0d66217d8856f443aeb9dd77/versioneer-0.29-py3-none-any.whl", hash = "sha256:0f1a137bb5d6811e96a79bb0486798aeae9b9c6efc24b389659cebb0ee396cb9", size = 46785, upload-time = "2023-07-07T15:09:26.545Z" },
 ]
 
 [[package]]

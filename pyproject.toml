@@ -23,7 +23,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
-    "pathlib_abc",
+    "pathlib_abc<=0.3.1",
     "fnmatch2"
 ]
 

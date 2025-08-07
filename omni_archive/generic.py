@@ -114,8 +114,14 @@ class Archive(PathBase):
             raise UnknownArchiveError(f"No handler found to read {archive_fn}")
 
         if mode[0] in ("a", "w", "x"):
+            # First check subclasses with specific extensions
             for subclass in cls.__subclasses__():
-                if any(archive_fn.name.endswith(ext) for ext in subclass._extensions):
+                if subclass._extensions and any(archive_fn.name.endswith(ext) for ext in subclass._extensions):
+                    return super(Archive, subclass).__new__(subclass)
+                
+            # Otherwise, fall back to a subclass without specific extensions (i.e. DirectoryArchive)
+            for subclass in cls.__subclasses__():
+                if not subclass._extensions:
                     return super(Archive, subclass).__new__(subclass)
 
             raise UnknownArchiveError(f"No handler found to write {archive_fn}")  # pragma: no cover

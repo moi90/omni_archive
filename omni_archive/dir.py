@@ -19,7 +19,7 @@ def _iterdir_recursive(
 class DirectoryArchive(Archive):
     """A subclass of Archive for working with filesystem directories."""
 
-    _extensions = [""]
+    _extensions = []
 
     @staticmethod
     def is_readable(archive_fn: Union[str, pathlib.Path, PathBase]):

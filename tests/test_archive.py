@@ -6,6 +6,7 @@ import zipfile
 import pytest
 
 from omni_archive import Archive, UnknownArchiveError
+from omni_archive.dir import DirectoryArchive
 from omni_archive.tar import TarArchive
 from omni_archive.zip import ZipArchive
 
@@ -24,6 +25,13 @@ def test_Archive(tmp_path, ext, compress_hint, as_str):
     spam_fn.touch()
 
     with Archive(str(archive_path) if as_str else archive_path, "w") as archive:
+        if ext == ".zip":
+            assert isinstance(archive, ZipArchive)
+        elif ext == ".tar":
+            assert isinstance(archive, TarArchive)
+        else:
+            assert isinstance(archive, DirectoryArchive)
+
         # Check that the archive itself can not be `open`ed
         with pytest.raises(IsADirectoryError):
             archive.open()
